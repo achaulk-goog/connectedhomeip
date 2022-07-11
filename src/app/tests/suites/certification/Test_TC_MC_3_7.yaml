@@ -12,12 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: 21.4.2. [TC-MC-3.6] Current App Verification
+name: 18.4.3. [TC-MC-3.7] Launch Application Verification
 
 config:
     nodeId: 0x12344321
     cluster: "Application Launcher"
     endpoint: 1
+    catalogVendorId:
+        type: INT16U
+        defaultValue: 123
+    applicationId:
+        type: CHAR_STRING
+        defaultValue: "exampleid"
 
 tests:
     - label: "Wait for the commissioned device to be retrieved"
@@ -28,75 +34,40 @@ tests:
               - name: "nodeId"
                 value: nodeId
 
-    # TODO: Update the corresponding values when feature is supported
     - label: "Launch an app with the provided a application ID"
-      disabled: true
+      PICS: MC_APPLAUNCHER.S.C0000
       command: "LaunchApp"
       arguments:
           values:
-              - name: "data"
+              - name: "Data"
                 value: "Hello World"
-              - name: "catalogVendorId"
-                value: 1234
-              - name: "applicationId"
-                value: "HelloWorldApp"
-
-    - label: "Reads the Status attribute"
-      disabled: true
-      cluster: "Application Basic"
-      command: "readAttribute"
-      attribute: "Status"
+              - name: "application"
+                value:
+                    {
+                        catalogVendorId: catalogVendorId,
+                        applicationId: applicationId,
+                    }
       response:
-          value: 1
-
-    # TODO: Update the corresponding values when feature is supported
-    - label: "Stop an app with the provided application ID"
-      disabled: true
-      command: "StopApp"
-      arguments:
           values:
-              - name: "applicationId"
-                value: "HelloWorldApp"
+              - name: "status"
+                value: 0
 
-    # TODO: Update the corresponding values when feature is supported
-    - label: "Launch an app with the provided a application ID"
-      disabled: true
+    - label:
+          "TH sends a LaunchApp command to DUT to launch an app which is not
+          available"
+      PICS: MC_APPLAUNCHER.S.C0000
       command: "LaunchApp"
       arguments:
           values:
               - name: "data"
                 value: "Hello World"
-              - name: "catalogVendorId"
-                value: 1234
-              - name: "applicationId"
-                value: "NonAvailableApp"
+              - name: "application"
+                value:
+                    {
+                        catalogVendorId: catalogVendorId,
+                        applicationId: "NonAvailableApp",
+                    }
       response:
-          error: APP_NOT_AVAILABLE
-
-    # TODO: Update the corresponding values when feature is supported
-    - label: "Launch an app with the provided a application ID"
-      disabled: true
-      command: "LaunchApp"
-      arguments:
           values:
-              - name: "data"
-                value: "Hello World"
-              - name: "catalogVendorId"
-                value: 1234
-              - name: "applicationId"
-                value: "HelloWorldApp"
-
-    # TODO: Update the corresponding values when feature is supported
-    - label: "Launch an app with the provided a application ID"
-      disabled: true
-      command: "LaunchApp"
-      arguments:
-          values:
-              - name: "data"
-                value: "Hello World"
-              - name: "catalogVendorId"
-                value: 1234
-              - name: "applicationId"
-                value: "HelloWorldApp2"
-      response:
-          error: SYSTEM_BUSY
+              - name: "status"
+                value: 1

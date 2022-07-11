@@ -63,7 +63,7 @@ public:
 
     void Shutdown();
 
-#if CONFIG_IM_BUILD_FOR_UNIT_TEST
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
     void SetWriterReserved(uint32_t aReservedSize) { mReservedSize = aReservedSize; }
 
     void SetMaxAttributesPerChunk(uint32_t aMaxAttributesPerChunk) { mMaxAttributesPerChunk = aMaxAttributesPerChunk; }
@@ -125,6 +125,10 @@ public:
     uint64_t GetDirtySetGeneration() const { return mDirtyGeneration; }
 
     void ScheduleUrgentEventDeliverySync();
+
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+    size_t GetGlobalDirtySetSize() { return mGlobalDirtySet.Allocated(); }
+#endif
 
 private:
     friend class TestReportingEngine;
@@ -188,6 +192,31 @@ private:
      */
     bool MergeOverlappedAttributePath(const AttributePathParams & aAttributePath);
 
+    /**
+     * If we are running out of ObjectPool for the global dirty set, we will try to merge the existing items by clusters.
+     *
+     * Returns whether we have released any paths.
+     */
+    bool MergeDirtyPathsUnderSameCluster();
+
+    /**
+     * If we are running out of ObjectPool for the global dirty set and we cannot find a slot after merging the existing items by
+     * clusters, we will try to merge the existing items by endpoints.
+     *
+     * Returns whether we have released any paths.
+     */
+    bool MergeDirtyPathsUnderSameEndpoint();
+
+    /**
+     * During the iterating of the paths, releasing the object in the inner loop will cause undefined behavior of the ObjectPool, so
+     * we replace the items to be cleared by a tomb first, then clear all the tombs after the iteration.
+     *
+     * Returns whether we have released any paths.
+     */
+    bool ClearTombPaths();
+
+    CHIP_ERROR InsertPathIntoDirtySet(const AttributePathParams & aAttributePath);
+
     inline void BumpDirtySetGeneration() { mDirtyGeneration++; }
 
     /**
@@ -218,7 +247,12 @@ private:
      *  mGlobalDirtySet is used to track the set of attribute/event paths marked dirty for reporting purposes.
      *
      */
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+    // For unit tests, always use inline allocation for code coverage.
+    ObjectPool<AttributePathParamsWithGeneration, CHIP_IM_SERVER_MAX_NUM_DIRTY_SET, ObjectPoolMem::kInline> mGlobalDirtySet;
+#else
     ObjectPool<AttributePathParamsWithGeneration, CHIP_IM_SERVER_MAX_NUM_DIRTY_SET> mGlobalDirtySet;
+#endif
 
     /**
      * A generation counter for the dirty attrbute set.
@@ -234,7 +268,7 @@ private:
      */
     uint64_t mDirtyGeneration = 1;
 
-#if CONFIG_IM_BUILD_FOR_UNIT_TEST
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
     uint32_t mReservedSize          = 0;
     uint32_t mMaxAttributesPerChunk = UINT32_MAX;
 #endif

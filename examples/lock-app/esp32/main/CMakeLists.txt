@@ -31,7 +31,8 @@ idf_component_register(INCLUDE_DIRS
                       SRC_DIRS
                      "${CMAKE_CURRENT_LIST_DIR}"
                      "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/platform/esp32"
-                     "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/common/pigweed"
+                     "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/platform/esp32/common"
+		     "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/common/pigweed"
                      "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/common/pigweed/esp32"
                      "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/zzz_generated/app-common/app-common/zap-generated/attributes"
                      "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/zzz_generated/app-common/app-common/zap-generated"
@@ -61,6 +62,8 @@ idf_component_register(INCLUDE_DIRS
                      "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/clusters/power-source-configuration-server"
                      "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/clusters/power-source-server"
                      "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/clusters/door-lock-server"
+                     "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/clusters/identify-server"
+                     "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/clusters/groups-server"
                      PRIV_REQUIRES bt chip QRCode)
 
 get_filename_component(CHIP_ROOT ${CMAKE_SOURCE_DIR}/third_party/connectedhomeip REALPATH)
@@ -78,7 +81,7 @@ pw_proto_library(descriptor_service
   STRIP_PREFIX
     ${CHIP_ROOT}/examples/common/pigweed/protos
   DEPS
-    pw_protobuf.common_protos
+    pw_protobuf.common_proto
 )
 
 pw_proto_library(device_service
@@ -91,7 +94,7 @@ pw_proto_library(device_service
   STRIP_PREFIX
     ${CHIP_ROOT}/examples/common/pigweed/protos
   DEPS
-    pw_protobuf.common_protos
+    pw_protobuf.common_proto
 )
 
 pw_proto_library(button_service
@@ -102,7 +105,7 @@ pw_proto_library(button_service
   STRIP_PREFIX
     ${CHIP_ROOT}/examples/common/pigweed/protos
   DEPS
-    pw_protobuf.common_protos
+    pw_protobuf.common_proto
 )
 
 pw_proto_library(locking_service
@@ -113,7 +116,7 @@ pw_proto_library(locking_service
   STRIP_PREFIX
     ${CHIP_ROOT}/examples/common/pigweed/protos
   DEPS
-    pw_protobuf.common_protos
+    pw_protobuf.common_proto
 )
 
 target_link_libraries(${COMPONENT_LIB} PUBLIC
@@ -146,6 +149,7 @@ idf_component_register(PRIV_INCLUDE_DIRS
                       "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/zzz_generated/lock-app/zap-generated"
                       "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/platform/esp32/route_hook"
                       "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/platform/esp32/shell_extension"
+		      "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/platform/esp32/common"
                       "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/server"
                       "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/util"
                       "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/reporting"
@@ -174,6 +178,8 @@ idf_component_register(PRIV_INCLUDE_DIRS
                       "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/clusters/power-source-server"
                       "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/clusters/user-label-server"
                       "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/clusters/door-lock-server"
+                      "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/clusters/identify-server"
+                      "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/clusters/groups-server"
                       PRIV_REQUIRES chip QRCode bt)
 
 set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

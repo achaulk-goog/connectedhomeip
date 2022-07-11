@@ -38,14 +38,6 @@ config:
         defaultValue: "MT:-24J0AFN00KA0648G00"
 
 tests:
-    - label: "Reboot target device"
-      cluster: "SystemCommands"
-      command: "Reboot"
-      arguments:
-          values:
-              - name: "discriminator"
-                value: discriminator
-
     - label: "TH_CR1 starts a commissioning process with DUT_CE"
       identity: "alpha"
       cluster: "DelayCommands"
@@ -68,7 +60,7 @@ tests:
     - label: "Commission from gamma"
       identity: "gamma"
       cluster: "CommissionerCommands"
-      command: "PairWithQRCode"
+      command: "PairWithCode"
       arguments:
           values:
               - name: "nodeId"
@@ -98,7 +90,7 @@ tests:
     - label: "Commission from beta"
       identity: "beta"
       cluster: "CommissionerCommands"
-      command: "PairWithQRCode"
+      command: "PairWithCode"
       arguments:
           values:
               - name: "nodeId"
@@ -167,31 +159,7 @@ tests:
       arguments:
           values:
               - name: "ms"
-                value: 54000
-
-    - label: "Wait for the expiration of PIXIT_COMM_WIN seconds"
-      cluster: "DelayCommands"
-      command: "WaitForMs"
-      arguments:
-          values:
-              - name: "ms"
-                value: 54000
-
-    - label: "Wait for the expiration of PIXIT_COMM_WIN seconds"
-      cluster: "DelayCommands"
-      command: "WaitForMs"
-      arguments:
-          values:
-              - name: "ms"
-                value: 54000
-
-    - label: "Wait for the expiration of PIXIT_COMM_WIN seconds"
-      cluster: "DelayCommands"
-      command: "WaitForMs"
-      arguments:
-          values:
-              - name: "ms"
-                value: 18000
+                value: 180000
 
     - label: "TH_CR1 re-opens new commissioning window on DUT_CE"
       identity: "alpha"
@@ -253,31 +221,7 @@ tests:
       arguments:
           values:
               - name: "ms"
-                value: 54000
-
-    - label: "Wait for the expiration of PIXIT_COMM_WIN seconds"
-      cluster: "DelayCommands"
-      command: "WaitForMs"
-      arguments:
-          values:
-              - name: "ms"
-                value: 54000
-
-    - label: "Wait for the expiration of PIXIT_COMM_WIN seconds"
-      cluster: "DelayCommands"
-      command: "WaitForMs"
-      arguments:
-          values:
-              - name: "ms"
-                value: 54000
-
-    - label: "Wait for the expiration of PIXIT_COMM_WIN seconds"
-      cluster: "DelayCommands"
-      command: "WaitForMs"
-      arguments:
-          values:
-              - name: "ms"
-                value: 18000
+                value: 180000
 
     - label: "TH_CR1 opens a new commissioning window on DUT_CE"
       identity: "alpha"

@@ -113,13 +113,13 @@ for arg; do
     user_args+=" $arg"
 done
 
-# Android prebuilt JAR setup
-python3 third_party/android_deps/set_up_android_deps.py
-
 # Android SDK setup
 android_sdk_args=""
 
 if [[ -d "${ANDROID_NDK_HOME}/toolchains" && -d "${ANDROID_HOME}/platforms" ]]; then
+    # Android prebuilt JAR setup
+    python3 third_party/android_deps/set_up_android_deps.py
+
     android_sdk_args+="android_sdk_root=\"$ANDROID_HOME\" android_ndk_root=\"$ANDROID_NDK_HOME\""
     extra_args+=" $android_sdk_args enable_android_builds=true"
 else
@@ -188,6 +188,20 @@ if [[ -f "${TI_SYSCONFIG_ROOT}/sysconfig_cli.sh" ]]; then
     echo "(cd $CHIP_ROOT/examples/lock-app/cc13x2x7_26x2x7; gn gen out/debug --args='$ti_simplelink_sdk_args'; ninja -C out/debug)"
 else
     echo "Hint: Set \$TI_SYSCONFIG_ROOT to enable building for cc13x2_26x2"
+fi
+
+echo
+
+tizen_sdk_args=""
+
+if [[ -d "${TIZEN_SDK_ROOT}" && -d "${TIZEN_SDK_SYSROOT}" ]]; then
+    tizen_sdk_args+="tizen_sdk_root=\"$TIZEN_SDK_ROOT\" tizen_sdk_sysroot=\"$TIZEN_SDK_SYSROOT\""
+    extra_args+=" $tizen_sdk_args enable_tizen_builds=true"
+else
+    echo
+    echo "Hint: Set \$TIZEN_SDK_ROOT and \$TIZEN_SDK_SYSROOT to enable building for Tizen"
+    echo "      Required Tizen SDK can be obtained from"
+    echo "      https://developer.tizen.org/development/tizen-studio/download"
 fi
 
 echo

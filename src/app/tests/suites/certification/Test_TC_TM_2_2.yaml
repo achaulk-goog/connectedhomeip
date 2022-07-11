@@ -51,13 +51,20 @@ tests:
       attribute: "MeasuredValue"
       PICS: A_TEMPERATURE
       response:
+          saveAs: valueBeforeChange
           constraints:
               type: uint16
 
-    #Disabled as UI prompts required for user action
     - label: "Operate on device to change the temperature significantly"
-      disabled: true
-      PICS: MANUAL_TEMPERATURE_CHANGE
+      cluster: "LogCommands"
+      command: "UserPrompt"
+      PICS: PICS_USER_PROMPT
+      arguments:
+          values:
+              - name: "message"
+                value: "Please enter 'y' for success"
+              - name: "expectedValue"
+                value: "y"
 
     - label: "Read the mandatory attribute: MeasuredValue"
       command: "readAttribute"
@@ -66,3 +73,4 @@ tests:
       response:
           constraints:
               type: uint16
+              notValue: valueBeforeChange

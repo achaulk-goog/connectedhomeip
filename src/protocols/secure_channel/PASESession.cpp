@@ -37,7 +37,6 @@
 #include <lib/support/BufferWriter.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
-#include <lib/support/ErrorStr.h>
 #include <lib/support/SafeInt.h>
 #include <lib/support/TypeTraits.h>
 #include <protocols/Protocols.h>
@@ -69,24 +68,17 @@ PASESession::~PASESession()
     Clear();
 }
 
+void PASESession::OnSessionReleased()
+{
+    Clear();
+    // Do this last in case the delegate frees us.
+    mDelegate->OnSessionEstablishmentError(CHIP_ERROR_CONNECTION_ABORTED);
+}
+
 void PASESession::Finish()
 {
     mPairingComplete = true;
-
-    Transport::PeerAddress address = mExchangeCtxt->GetSessionHandle()->AsUnauthenticatedSession()->GetPeerAddress();
-
-    // Discard the exchange so that Clear() doesn't try closing it. The exchange will handle that.
-    DiscardExchange();
-
-    CHIP_ERROR err = ActivateSecureSession(address);
-    if (err == CHIP_NO_ERROR)
-    {
-        mDelegate->OnSessionEstablished(mSecureSessionHolder.Get());
-    }
-    else
-    {
-        mDelegate->OnSessionEstablishmentError(err);
-    }
+    PairingSession::Finish();
 }
 
 void PASESession::Clear()
@@ -110,29 +102,6 @@ void PASESession::Clear()
     mKeLen           = sizeof(mKe);
     mPairingComplete = false;
     PairingSession::Clear();
-    CloseExchange();
-}
-
-void PASESession::CloseExchange()
-{
-    if (mExchangeCtxt != nullptr)
-    {
-        mExchangeCtxt->Close();
-        mExchangeCtxt = nullptr;
-    }
-}
-
-void PASESession::DiscardExchange()
-{
-    if (mExchangeCtxt != nullptr)
-    {
-        // Make sure the exchange doesn't try to notify us when it closes,
-        // since we might be dead by then.
-        mExchangeCtxt->SetDelegate(nullptr);
-        // Null out mExchangeCtxt so that Clear() doesn't try closing it.  The
-        // exchange will handle that.
-        mExchangeCtxt = nullptr;
-    }
 }
 
 CHIP_ERROR PASESession::Init(SessionManager & sessionManager, uint32_t setupCode, SessionEstablishmentDelegate * delegate)
@@ -185,7 +154,7 @@ CHIP_ERROR PASESession::SetupSpake2p()
 }
 
 CHIP_ERROR PASESession::WaitForPairing(SessionManager & sessionManager, const Spake2pVerifier & verifier, uint32_t pbkdf2IterCount,
-                                       const ByteSpan & salt, Optional<ReliableMessageProtocolConfig> mrpConfig,
+                                       const ByteSpan & salt, Optional<ReliableMessageProtocolConfig> mrpLocalConfig,
                                        SessionEstablishmentDelegate * delegate)
 {
     // Return early on error here, as we have not initialized any state yet
@@ -219,7 +188,7 @@ CHIP_ERROR PASESession::WaitForPairing(SessionManager & sessionManager, const Sp
     mIterationCount  = pbkdf2IterCount;
     mNextExpectedMsg = MsgType::PBKDFParamRequest;
     mPairingComplete = false;
-    mLocalMRPConfig  = mrpConfig;
+    mLocalMRPConfig  = mrpLocalConfig;
 
     ChipLogDetail(SecureChannel, "Waiting for PBKDF param request");
 
@@ -232,7 +201,7 @@ exit:
 }
 
 CHIP_ERROR PASESession::Pair(SessionManager & sessionManager, uint32_t peerSetUpPINCode,
-                             Optional<ReliableMessageProtocolConfig> mrpConfig, Messaging::ExchangeContext * exchangeCtxt,
+                             Optional<ReliableMessageProtocolConfig> mrpLocalConfig, Messaging::ExchangeContext * exchangeCtxt,
                              SessionEstablishmentDelegate * delegate)
 {
     MATTER_TRACE_EVENT_SCOPE("Pair", "PASESession");
@@ -245,7 +214,7 @@ CHIP_ERROR PASESession::Pair(SessionManager & sessionManager, uint32_t peerSetUp
     mExchangeCtxt = exchangeCtxt;
     mExchangeCtxt->SetResponseTimeout(kSpake2p_Response_Timeout + mExchangeCtxt->GetSessionHandle()->GetAckTimeout());
 
-    mLocalMRPConfig = mrpConfig;
+    mLocalMRPConfig = mrpLocalConfig;
 
     err = SendPBKDFParamRequest();
     SuccessOrExit(err);
@@ -788,7 +757,8 @@ CHIP_ERROR PASESession::OnFailureStatusReport(Protocols::SecureChannel::GeneralS
         err = CHIP_ERROR_INTERNAL;
         break;
     };
-    ChipLogError(SecureChannel, "Received error (protocol code %d) during PASE process. %s", protocolCode, ErrorStr(err));
+    ChipLogError(SecureChannel, "Received error (protocol code %d) during PASE process: %" CHIP_ERROR_FORMAT, protocolCode,
+                 err.Format());
     return err;
 }
 
@@ -830,10 +800,19 @@ CHIP_ERROR PASESession::OnUnsolicitedMessageReceived(const PayloadHeader & paylo
 CHIP_ERROR PASESession::OnMessageReceived(ExchangeContext * exchange, const PayloadHeader & payloadHeader,
                                           System::PacketBufferHandle && msg)
 {
-    CHIP_ERROR err = ValidateReceivedMessage(exchange, payloadHeader, msg);
+    CHIP_ERROR err  = ValidateReceivedMessage(exchange, payloadHeader, msg);
+    MsgType msgType = static_cast<MsgType>(payloadHeader.GetMessageType());
     SuccessOrExit(err);
 
-    switch (static_cast<MsgType>(payloadHeader.GetMessageType()))
+#if CHIP_CONFIG_SLOW_CRYPTO
+    if (msgType == MsgType::PBKDFParamRequest || msgType == MsgType::PBKDFParamResponse || msgType == MsgType::PASE_Pake1 ||
+        msgType == MsgType::PASE_Pake2 || msgType == MsgType::PASE_Pake3)
+    {
+        SuccessOrExit(mExchangeCtxt->FlushAcks());
+    }
+#endif // CHIP_CONFIG_SLOW_CRYPTO
+
+    switch (msgType)
     {
     case MsgType::PBKDFParamRequest:
         err = HandlePBKDFParamRequest(std::move(msg));
@@ -873,7 +852,7 @@ exit:
         // exchange will handle that.
         DiscardExchange();
         Clear();
-        ChipLogError(SecureChannel, "Failed during PASE session setup. %s", ErrorStr(err));
+        ChipLogError(SecureChannel, "Failed during PASE session setup: %" CHIP_ERROR_FORMAT, err.Format());
         // Do this last in case the delegate frees us.
         mDelegate->OnSessionEstablishmentError(err);
     }

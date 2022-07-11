@@ -74,8 +74,8 @@ uint32_t afNumPktsSent;
 #endif
 
 const EmberAfClusterName zclClusterNames[] = {
-    CLUSTER_IDS_TO_NAMES                                               // defined in print-cluster.h
-    { ZCL_NULL_CLUSTER_ID, EMBER_AF_NULL_MANUFACTURER_CODE, nullptr }, // terminator
+    CLUSTER_IDS_TO_NAMES              // defined in print-cluster.h
+    { ZCL_NULL_CLUSTER_ID, nullptr }, // terminator
 };
 
 // A pointer to the current command being processed
@@ -209,12 +209,6 @@ void emberAfInit(chip::Messaging::ExchangeManager * exchangeMgr)
     }
 
     memset(afDeviceEnabled, true, emberAfEndpointCount());
-
-    // Set up client API buffer.
-    emberAfSetExternalBuffer(appResponseData, EMBER_AF_RESPONSE_BUFFER_LEN, &appResponseLength, &emberAfResponseApsFrame);
-
-    // initialize event management system
-    emAfInitEvents();
 
     MATTER_PLUGINS_INIT
 
@@ -769,24 +763,21 @@ uint8_t emberAfMake8bitEncodedChanPg(uint8_t page, uint8_t channel)
     }
 }
 
-bool emberAfContainsAttribute(chip::EndpointId endpoint, chip::ClusterId clusterId, chip::AttributeId attributeId, bool asServer)
+bool emberAfContainsAttribute(chip::EndpointId endpoint, chip::ClusterId clusterId, chip::AttributeId attributeId)
 {
-    uint8_t mask = asServer ? CLUSTER_MASK_SERVER : CLUSTER_MASK_CLIENT;
-    return (emberAfLocateAttributeMetadata(endpoint, clusterId, attributeId, mask) != nullptr);
+    return (emberAfGetServerAttributeIndexByAttributeId(endpoint, clusterId, attributeId) != UINT16_MAX);
 }
 
-bool emberAfIsNonVolatileAttribute(chip::EndpointId endpoint, chip::ClusterId clusterId, chip::AttributeId attributeId,
-                                   bool asServer)
+bool emberAfIsKnownVolatileAttribute(chip::EndpointId endpoint, chip::ClusterId clusterId, chip::AttributeId attributeId)
 {
-    uint8_t mask                              = asServer ? CLUSTER_MASK_SERVER : CLUSTER_MASK_CLIENT;
-    const EmberAfAttributeMetadata * metadata = emberAfLocateAttributeMetadata(endpoint, clusterId, attributeId, mask);
+    const EmberAfAttributeMetadata * metadata = emberAfLocateAttributeMetadata(endpoint, clusterId, attributeId);
 
     if (metadata == nullptr)
     {
         return false;
     }
 
-    return metadata->IsNonVolatile();
+    return !metadata->IsAutomaticallyPersisted() && !metadata->IsExternal();
 }
 
 chip::Messaging::ExchangeManager * chip::ExchangeManager()

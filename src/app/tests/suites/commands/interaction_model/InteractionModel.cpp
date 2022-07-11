@@ -22,160 +22,79 @@ using namespace chip;
 using namespace chip::app;
 
 CHIP_ERROR InteractionModel::ReadAttribute(const char * identity, EndpointId endpointId, ClusterId clusterId,
-                                           AttributeId attributeId, bool fabricFiltered)
+                                           AttributeId attributeId, bool fabricFiltered, const Optional<DataVersion> & dataVersion)
 {
     DeviceProxy * device = GetDevice(identity);
     VerifyOrReturnError(device != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    AttributePathParams attributePathParams[1];
-    if (endpointId != kInvalidEndpointId)
+    std::vector<EndpointId> endpointIds   = { endpointId };
+    std::vector<ClusterId> clusterIds     = { clusterId };
+    std::vector<AttributeId> attributeIds = { attributeId };
+
+    Optional<std::vector<DataVersion>> dataVersions = Optional<std::vector<DataVersion>>();
+    if (dataVersion.HasValue())
     {
-        attributePathParams[0].mEndpointId = endpointId;
+        dataVersions.Value().push_back(dataVersion.Value());
     }
 
-    if (clusterId != kInvalidClusterId)
-    {
-        attributePathParams[0].mClusterId = clusterId;
-    }
-
-    if (attributeId != kInvalidAttributeId)
-    {
-        attributePathParams[0].mAttributeId = attributeId;
-    }
-
-    ReadPrepareParams params(device->GetSecureSession().Value());
-    params.mpEventPathParamsList        = nullptr;
-    params.mEventPathParamsListSize     = 0;
-    params.mpAttributePathParamsList    = attributePathParams;
-    params.mAttributePathParamsListSize = 1;
-    params.mIsFabricFiltered            = fabricFiltered;
-
-    mReadClient = std::make_unique<ReadClient>(InteractionModelEngine::GetInstance(), device->GetExchangeManager(),
-                                               mBufferedReadAdapter, ReadClient::InteractionType::Read);
-    return mReadClient->SendRequest(params);
+    return InteractionModelReports::ReadAttribute(device, endpointIds, clusterIds, attributeIds, Optional<bool>(fabricFiltered),
+                                                  dataVersions);
 }
 
 CHIP_ERROR InteractionModel::ReadEvent(const char * identity, EndpointId endpointId, ClusterId clusterId, EventId eventId,
-                                       bool fabricFiltered)
+                                       bool fabricFiltered, const Optional<EventNumber> & eventNumber)
 {
     DeviceProxy * device = GetDevice(identity);
     VerifyOrReturnError(device != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    EventPathParams eventPathParams[1];
-    if (endpointId != kInvalidEndpointId)
-    {
-        eventPathParams[0].mEndpointId = endpointId;
-    }
-
-    if (clusterId != kInvalidClusterId)
-    {
-        eventPathParams[0].mClusterId = clusterId;
-    }
-
-    if (eventId != kInvalidEventId)
-    {
-        eventPathParams[0].mEventId = eventId;
-    }
-
-    ReadPrepareParams params(device->GetSecureSession().Value());
-    params.mpEventPathParamsList        = eventPathParams;
-    params.mEventPathParamsListSize     = 1;
-    params.mpAttributePathParamsList    = nullptr;
-    params.mAttributePathParamsListSize = 0;
-    params.mIsFabricFiltered            = fabricFiltered;
-
-    // TODO: Add data version supports
-    mReadClient = std::make_unique<ReadClient>(InteractionModelEngine::GetInstance(), device->GetExchangeManager(),
-                                               mBufferedReadAdapter, ReadClient::InteractionType::Read);
-    VerifyOrReturnError(mReadClient != nullptr, CHIP_ERROR_NO_MEMORY);
-
-    return mReadClient->SendRequest(params);
+    std::vector<EndpointId> endpointIds = { endpointId };
+    std::vector<ClusterId> clusterIds   = { clusterId };
+    std::vector<EventId> eventIds       = { eventId };
+    return InteractionModelReports::ReadEvent(device, endpointIds, clusterIds, eventIds, Optional<bool>(fabricFiltered),
+                                              eventNumber);
 }
 
 CHIP_ERROR InteractionModel::SubscribeAttribute(const char * identity, EndpointId endpointId, ClusterId clusterId,
                                                 AttributeId attributeId, uint16_t minInterval, uint16_t maxInterval,
-                                                bool fabricFiltered)
+                                                bool fabricFiltered, const Optional<DataVersion> & dataVersion,
+                                                const Optional<bool> & keepSubscriptions)
 {
     DeviceProxy * device = GetDevice(identity);
     VerifyOrReturnError(device != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    AttributePathParams attributePathParams[1];
-    if (endpointId != kInvalidEndpointId)
+    std::vector<EndpointId> endpointIds   = { endpointId };
+    std::vector<ClusterId> clusterIds     = { clusterId };
+    std::vector<AttributeId> attributeIds = { attributeId };
+
+    Optional<std::vector<DataVersion>> dataVersions = Optional<std::vector<DataVersion>>();
+    if (dataVersion.HasValue())
     {
-        attributePathParams[0].mEndpointId = endpointId;
+        dataVersions.Value().push_back(dataVersion.Value());
     }
 
-    if (clusterId != kInvalidClusterId)
-    {
-        attributePathParams[0].mClusterId = clusterId;
-    }
-
-    if (attributeId != kInvalidAttributeId)
-    {
-        attributePathParams[0].mAttributeId = attributeId;
-    }
-
-    ReadPrepareParams params(device->GetSecureSession().Value());
-    params.mpEventPathParamsList        = nullptr;
-    params.mEventPathParamsListSize     = 0;
-    params.mpAttributePathParamsList    = attributePathParams;
-    params.mAttributePathParamsListSize = 1;
-    params.mMinIntervalFloorSeconds     = minInterval;
-    params.mMaxIntervalCeilingSeconds   = maxInterval;
-    params.mIsFabricFiltered            = fabricFiltered;
-
-    mSubscribeClient = std::make_unique<ReadClient>(InteractionModelEngine::GetInstance(), device->GetExchangeManager(),
-                                                    mBufferedReadAdapter, ReadClient::InteractionType::Subscribe);
-    VerifyOrReturnError(mSubscribeClient != nullptr, CHIP_ERROR_NO_MEMORY);
-
-    return mSubscribeClient->SendRequest(params);
+    return InteractionModelReports::SubscribeAttribute(device, endpointIds, clusterIds, attributeIds, minInterval, maxInterval,
+                                                       Optional<bool>(fabricFiltered), dataVersions, keepSubscriptions);
 }
 
 CHIP_ERROR InteractionModel::SubscribeEvent(const char * identity, EndpointId endpointId, ClusterId clusterId, EventId eventId,
-                                            uint16_t minInterval, uint16_t maxInterval, bool fabricFiltered)
+                                            uint16_t minInterval, uint16_t maxInterval, bool fabricFiltered,
+                                            const Optional<EventNumber> & eventNumber, const Optional<bool> & keepSubscriptions)
 {
     DeviceProxy * device = GetDevice(identity);
     VerifyOrReturnError(device != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    EventPathParams eventPathParams[1];
-
-    if (endpointId != kInvalidEndpointId)
-    {
-        eventPathParams[0].mEndpointId = endpointId;
-    }
-
-    if (clusterId != kInvalidClusterId)
-    {
-        eventPathParams[0].mClusterId = clusterId;
-    }
-
-    if (eventId != kInvalidEventId)
-    {
-        eventPathParams[0].mEventId = eventId;
-    }
-
-    ReadPrepareParams params(device->GetSecureSession().Value());
-    params.mpEventPathParamsList        = eventPathParams;
-    params.mEventPathParamsListSize     = 1;
-    params.mpAttributePathParamsList    = nullptr;
-    params.mAttributePathParamsListSize = 0;
-    params.mMinIntervalFloorSeconds     = minInterval;
-    params.mMaxIntervalCeilingSeconds   = maxInterval;
-    params.mIsFabricFiltered            = fabricFiltered;
-
-    mSubscribeClient = std::make_unique<ReadClient>(InteractionModelEngine::GetInstance(), device->GetExchangeManager(),
-                                                    mBufferedReadAdapter, ReadClient::InteractionType::Subscribe);
-    VerifyOrReturnError(mSubscribeClient != nullptr, CHIP_ERROR_NO_MEMORY);
-
-    return mSubscribeClient->SendRequest(params);
+    std::vector<EndpointId> endpointIds = { endpointId };
+    std::vector<ClusterId> clusterIds   = { clusterId };
+    std::vector<EventId> eventIds       = { eventId };
+    return InteractionModelReports::SubscribeEvent(device, endpointIds, clusterIds, eventIds, minInterval, maxInterval,
+                                                   Optional<bool>(fabricFiltered), eventNumber, keepSubscriptions);
 }
 
 void InteractionModel::Shutdown()
 {
-    mReadClient.reset();
-    mSubscribeClient.reset();
-    mWriteClient.reset();
-    mCommandSender.reset();
+    InteractionModelReports::Shutdown();
+    InteractionModelWriter::Shutdown();
+    InteractionModelCommands::Shutdown();
 }
 
 /////////// ReadClient Callback Interface /////////
@@ -195,17 +114,18 @@ void InteractionModel::OnError(CHIP_ERROR error)
     OnResponse(status, nullptr);
 }
 
-void InteractionModel::OnDone()
+void InteractionModel::OnDone(ReadClient * aReadClient)
 {
-    mReadClient.reset();
-    // TODO: Close the subscribe client
+    InteractionModelReports::CleanupReadClient(aReadClient);
     ContinueOnChipMainThread(CHIP_NO_ERROR);
 }
 
-void InteractionModel::OnSubscriptionEstablished(uint64_t subscriptionId)
+void InteractionModel::OnSubscriptionEstablished(SubscriptionId subscriptionId)
 {
     ContinueOnChipMainThread(CHIP_NO_ERROR);
 }
+
+void InteractionModel::OnResubscriptionAttempt(CHIP_ERROR aTerminationCause, uint32_t aNextResubscribeIntervalMsec) {}
 
 /////////// WriteClient Callback Interface /////////
 void InteractionModel::OnResponse(const WriteClient * client, const ConcreteDataAttributePath & path, StatusIB status)
@@ -240,6 +160,325 @@ void InteractionModel::OnError(const CommandSender * client, CHIP_ERROR error)
 
 void InteractionModel::OnDone(CommandSender * client)
 {
-    mCommandSender.reset();
-    ContinueOnChipMainThread(CHIP_NO_ERROR);
+    if (mCommandSender.size())
+    {
+        mCommandSender.front().reset();
+        mCommandSender.erase(mCommandSender.begin());
+    }
+
+    // If the command is repeated N times, wait for all the responses to comes in
+    // before exiting.
+    if (!mCommandSender.size())
+    {
+        ContinueOnChipMainThread(CHIP_NO_ERROR);
+    }
+}
+
+CHIP_ERROR InteractionModelConfig::GetAttributePaths(std::vector<EndpointId> endpointIds, std::vector<ClusterId> clusterIds,
+                                                     std::vector<AttributeId> attributeIds,
+                                                     const Optional<std::vector<DataVersion>> & dataVersions,
+                                                     AttributePathsConfig & pathsConfig)
+{
+    const size_t endpointCount     = endpointIds.size();
+    const size_t clusterCount      = clusterIds.size();
+    const size_t attributeCount    = attributeIds.size();
+    const size_t dataVersionsCount = dataVersions.HasValue() ? dataVersions.Value().size() : 0;
+
+    VerifyOrReturnError(clusterCount > 0 && clusterCount <= kMaxAllowedPaths, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(attributeCount > 0 && attributeCount <= kMaxAllowedPaths, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(endpointCount > 0 && endpointCount <= kMaxAllowedPaths, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(dataVersionsCount <= kMaxAllowedPaths, CHIP_ERROR_INVALID_ARGUMENT);
+
+    const bool hasSameIdsCount = (clusterCount == attributeCount) && (clusterCount == endpointCount) &&
+        (dataVersionsCount == 0 || clusterCount == dataVersionsCount);
+
+    const bool multipleClusters =
+        clusterCount > 1 && attributeCount == 1 && endpointCount == 1 && (dataVersionsCount == 0 || dataVersionsCount == 1);
+    const bool multipleAttributes =
+        attributeCount > 1 && clusterCount == 1 && endpointCount == 1 && (dataVersionsCount == 0 || dataVersionsCount == 1);
+    const bool multipleEndpoints =
+        endpointCount > 1 && clusterCount == 1 && attributeCount == 1 && (dataVersionsCount == 0 || dataVersionsCount == 1);
+    const bool multipleDataVersions = dataVersionsCount > 1 && clusterCount == 1 && attributeCount == 1 && endpointCount == 1;
+
+    size_t pathsCount = 0;
+    if (hasSameIdsCount)
+    {
+        pathsCount = clusterCount;
+    }
+    else if (multipleClusters)
+    {
+        pathsCount = clusterCount;
+    }
+    else if (multipleAttributes)
+    {
+        pathsCount = attributeCount;
+    }
+    else if (multipleEndpoints)
+    {
+        pathsCount = endpointCount;
+    }
+    else if (multipleDataVersions)
+    {
+        pathsCount = dataVersionsCount;
+    }
+    else
+    {
+        ChipLogError(chipTool,
+                     "\nCommand targetting multiple paths needs to have: \n \t * One element with multiple ids (for "
+                     "example 1 cluster id, 1 attribute id, 2 endpoint ids)\n\t * Or the same "
+                     "number of ids (for examples 2 cluster ids, 2 attribute ids and 2 endpoint ids).\n The current command has %u "
+                     "cluster ids, %u attribute ids, %u endpoint ids.",
+                     static_cast<unsigned int>(clusterCount), static_cast<unsigned int>(attributeCount),
+                     static_cast<unsigned int>(endpointCount));
+        return CHIP_ERROR_INVALID_ARGUMENT;
+    }
+
+    pathsConfig.count = pathsCount;
+
+    for (size_t i = 0; i < pathsCount; i++)
+    {
+        ClusterId clusterId     = clusterIds.at((hasSameIdsCount || multipleClusters) ? i : 0);
+        AttributeId attributeId = attributeIds.at((hasSameIdsCount || multipleAttributes) ? i : 0);
+        EndpointId endpointId   = endpointIds.at((hasSameIdsCount || multipleEndpoints) ? i : 0);
+
+        ChipLogProgress(chipTool, "\tcluster " ChipLogFormatMEI ", attribute: " ChipLogFormatMEI ", endpoint %u",
+                        ChipLogValueMEI(clusterId), ChipLogValueMEI(attributeId), endpointId);
+
+        if (clusterId != kInvalidClusterId)
+        {
+            pathsConfig.attributePathParams[i].mClusterId = clusterId;
+        }
+
+        if (attributeId != kInvalidAttributeId)
+        {
+            pathsConfig.attributePathParams[i].mAttributeId = attributeId;
+        }
+
+        if (endpointId != kInvalidEndpointId)
+        {
+            pathsConfig.attributePathParams[i].mEndpointId = endpointId;
+        }
+
+        if (dataVersions.HasValue())
+        {
+            DataVersion dataVersion = dataVersions.Value().at((hasSameIdsCount || multipleDataVersions) ? i : 0);
+            pathsConfig.dataVersionFilter[i].mEndpointId = endpointId;
+            pathsConfig.dataVersionFilter[i].mClusterId  = clusterId;
+            pathsConfig.dataVersionFilter[i].mDataVersion.SetValue(dataVersion);
+        }
+    }
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR InteractionModelReports::ReportAttribute(DeviceProxy * device, std::vector<EndpointId> endpointIds,
+                                                    std::vector<ClusterId> clusterIds, std::vector<AttributeId> attributeIds,
+                                                    ReadClient::InteractionType interactionType, uint16_t minInterval,
+                                                    uint16_t maxInterval, const Optional<bool> & fabricFiltered,
+                                                    const Optional<std::vector<DataVersion>> & dataVersions,
+                                                    const Optional<bool> & keepSubscriptions)
+{
+    InteractionModelConfig::AttributePathsConfig pathsConfig;
+    ReturnErrorOnFailure(
+        InteractionModelConfig::GetAttributePaths(endpointIds, clusterIds, attributeIds, dataVersions, pathsConfig));
+
+    ChipLogProgress(chipTool,
+                    "Sending %sAttribute to:", interactionType == ReadClient::InteractionType::Subscribe ? "Subscribe" : "Read");
+
+    ReadPrepareParams params(device->GetSecureSession().Value());
+    params.mpEventPathParamsList        = nullptr;
+    params.mEventPathParamsListSize     = 0;
+    params.mpAttributePathParamsList    = pathsConfig.attributePathParams;
+    params.mAttributePathParamsListSize = pathsConfig.count;
+
+    if (fabricFiltered.HasValue())
+    {
+        params.mIsFabricFiltered = fabricFiltered.Value();
+    }
+
+    if (dataVersions.HasValue())
+    {
+        params.mpDataVersionFilterList    = pathsConfig.dataVersionFilter;
+        params.mDataVersionFilterListSize = pathsConfig.count;
+    }
+
+    if (interactionType == ReadClient::InteractionType::Subscribe)
+    {
+        params.mMinIntervalFloorSeconds   = minInterval;
+        params.mMaxIntervalCeilingSeconds = maxInterval;
+        if (keepSubscriptions.HasValue())
+        {
+            params.mKeepSubscriptions = keepSubscriptions.Value();
+        }
+    }
+
+    auto client = std::make_unique<ReadClient>(InteractionModelEngine::GetInstance(), device->GetExchangeManager(),
+                                               mBufferedReadAdapter, interactionType);
+    if (interactionType == ReadClient::InteractionType::Read)
+    {
+        ReturnErrorOnFailure(client->SendRequest(params));
+    }
+    else
+    {
+        // We want to allow certain kinds of spec-invalid subscriptions so we
+        // can test how the server reacts to them.
+        ReturnErrorOnFailure(client->SendSubscribeRequestWithoutValidation(params));
+    }
+    mReadClients.push_back(std::move(client));
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR InteractionModelReports::ReportEvent(DeviceProxy * device, std::vector<EndpointId> endpointIds,
+                                                std::vector<ClusterId> clusterIds, std::vector<EventId> eventIds,
+                                                ReadClient::InteractionType interactionType, uint16_t minInterval,
+                                                uint16_t maxInterval, const Optional<bool> & fabricFiltered,
+                                                const Optional<EventNumber> & eventNumber, const Optional<bool> & keepSubscriptions,
+                                                const Optional<std::vector<bool>> & isUrgents)
+{
+    const size_t clusterCount  = clusterIds.size();
+    const size_t eventCount    = eventIds.size();
+    const size_t endpointCount = endpointIds.size();
+    const size_t isUrgentCount = isUrgents.HasValue() ? isUrgents.Value().size() : 0;
+
+    VerifyOrReturnError(clusterCount > 0 && clusterCount <= kMaxAllowedPaths, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(eventCount > 0 && eventCount <= kMaxAllowedPaths, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(endpointCount > 0 && endpointCount <= kMaxAllowedPaths, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(isUrgentCount <= kMaxAllowedPaths, CHIP_ERROR_INVALID_ARGUMENT);
+
+    const bool hasSameIdsCount   = (clusterCount == eventCount) && (clusterCount == endpointCount);
+    const bool multipleClusters  = clusterCount > 1 && eventCount == 1 && endpointCount == 1;
+    const bool multipleEvents    = eventCount > 1 && clusterCount == 1 && endpointCount == 1;
+    const bool multipleEndpoints = endpointCount > 1 && clusterCount == 1 && eventCount == 1;
+
+    size_t pathsCount = 0;
+    if (hasSameIdsCount)
+    {
+        pathsCount = clusterCount;
+    }
+    else if (multipleClusters)
+    {
+        pathsCount = clusterCount;
+    }
+    else if (multipleEvents)
+    {
+        pathsCount = eventCount;
+    }
+    else if (multipleEndpoints)
+    {
+        pathsCount = endpointCount;
+    }
+    else
+    {
+        ChipLogError(chipTool,
+                     "\n%sEvent command targetting multiple paths needs to have: \n \t * One element with multiple ids (for "
+                     "example 1 cluster id, 1 event id, 2 endpoint ids)\n\t * Or the same "
+                     "number of ids (for examples 2 cluster ids, 2 event ids and 2 endpoint ids).\n The current command has %u "
+                     "cluster ids, %u event ids, %u endpoint ids.",
+                     interactionType == ReadClient::InteractionType::Subscribe ? "Subscribe" : "Read",
+                     static_cast<unsigned int>(clusterCount), static_cast<unsigned int>(eventCount),
+                     static_cast<unsigned int>(endpointCount));
+        return CHIP_ERROR_INVALID_ARGUMENT;
+    }
+
+    EventPathParams eventPathParams[kMaxAllowedPaths];
+
+    ChipLogProgress(chipTool,
+                    "Sending %sEvent to:", interactionType == ReadClient::InteractionType::Subscribe ? "Subscribe" : "Read");
+    for (size_t i = 0; i < pathsCount; i++)
+    {
+        ClusterId clusterId   = clusterIds.at((hasSameIdsCount || multipleClusters) ? i : 0);
+        EventId eventId       = eventIds.at((hasSameIdsCount || multipleEvents) ? i : 0);
+        EndpointId endpointId = endpointIds.at((hasSameIdsCount || multipleEndpoints) ? i : 0);
+
+        ChipLogProgress(chipTool, "\tcluster " ChipLogFormatMEI ", event: " ChipLogFormatMEI ", endpoint %u",
+                        ChipLogValueMEI(clusterId), ChipLogValueMEI(eventId), endpointId);
+        if (clusterId != kInvalidClusterId)
+        {
+            eventPathParams[i].mClusterId = clusterId;
+        }
+
+        if (eventId != kInvalidEventId)
+        {
+            eventPathParams[i].mEventId = eventId;
+        }
+
+        if (endpointId != kInvalidEndpointId)
+        {
+            eventPathParams[i].mEndpointId = endpointId;
+        }
+
+        if (isUrgents.HasValue() && isUrgents.Value().size() > i)
+        {
+            eventPathParams[i].mIsUrgentEvent = isUrgents.Value().at(i);
+        }
+    }
+
+    ReadPrepareParams params(device->GetSecureSession().Value());
+    params.mpEventPathParamsList        = eventPathParams;
+    params.mEventPathParamsListSize     = pathsCount;
+    params.mEventNumber                 = eventNumber;
+    params.mpAttributePathParamsList    = nullptr;
+    params.mAttributePathParamsListSize = 0;
+
+    if (fabricFiltered.HasValue())
+    {
+        params.mIsFabricFiltered = fabricFiltered.Value();
+    }
+
+    if (interactionType == ReadClient::InteractionType::Subscribe)
+    {
+        params.mMinIntervalFloorSeconds   = minInterval;
+        params.mMaxIntervalCeilingSeconds = maxInterval;
+        if (keepSubscriptions.HasValue())
+        {
+            params.mKeepSubscriptions = keepSubscriptions.Value();
+        }
+    }
+
+    auto client = std::make_unique<ReadClient>(InteractionModelEngine::GetInstance(), device->GetExchangeManager(),
+                                               mBufferedReadAdapter, interactionType);
+    ReturnErrorOnFailure(client->SendRequest(params));
+    mReadClients.push_back(std::move(client));
+    return CHIP_NO_ERROR;
+}
+
+void InteractionModelReports::CleanupReadClient(ReadClient * aReadClient)
+{
+    mReadClients.erase(
+        std::remove_if(mReadClients.begin(), mReadClients.end(), [aReadClient](auto & item) { return item.get() == aReadClient; }),
+        mReadClients.end());
+}
+
+CHIP_ERROR InteractionModelReports::ReadAll(DeviceProxy * device, std::vector<EndpointId> endpointIds,
+                                            const Optional<bool> & fabricFiltered)
+{
+    AttributePathParams attributePathParams[kMaxAllowedPaths];
+    EventPathParams eventPathParams[kMaxAllowedPaths];
+
+    auto pathsCount = endpointIds.size();
+    VerifyOrReturnError(pathsCount > 0 && pathsCount <= kMaxAllowedPaths, CHIP_ERROR_INVALID_ARGUMENT);
+
+    for (size_t i = 0; i < pathsCount; i++)
+    {
+        auto endpointId                    = endpointIds.at(i);
+        attributePathParams[i].mEndpointId = endpointId;
+        eventPathParams[i].mEndpointId     = endpointId;
+    }
+
+    ReadPrepareParams params(device->GetSecureSession().Value());
+    params.mpEventPathParamsList        = eventPathParams;
+    params.mEventPathParamsListSize     = pathsCount;
+    params.mpAttributePathParamsList    = attributePathParams;
+    params.mAttributePathParamsListSize = pathsCount;
+
+    if (fabricFiltered.HasValue())
+    {
+        params.mIsFabricFiltered = fabricFiltered.Value();
+    }
+
+    auto client = std::make_unique<ReadClient>(InteractionModelEngine::GetInstance(), device->GetExchangeManager(),
+                                               mBufferedReadAdapter, ReadClient::InteractionType::Read);
+    ReturnErrorOnFailure(client->SendRequest(params));
+    mReadClients.push_back(std::move(client));
+    return CHIP_NO_ERROR;
 }

@@ -35,6 +35,7 @@
 #include <lib/support/CHIPCounter.h>
 #include <lib/support/ErrorStr.h>
 #include <lib/support/TimeUtils.h>
+#include <lib/support/UnitTestContext.h>
 #include <lib/support/UnitTestRegistration.h>
 #include <lib/support/UnitTestUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
@@ -90,7 +91,7 @@ public:
     }
 
 private:
-    MonotonicallyIncreasingCounter mEventCounter;
+    MonotonicallyIncreasingCounter<EventNumber> mEventCounter;
 };
 
 uint32_t gIterationCount = 0;
@@ -150,11 +151,13 @@ public:
 
     void OnEventData(const app::EventHeader & aEventHeader, TLV::TLVReader * apData, const app::StatusIB * apStatus) override;
 
-    void OnDone() override;
+    void OnDone(app::ReadClient * apReadClient) override;
 
     void OnReportEnd() override { mOnReportEnd = true; }
 
-    void OnSubscriptionEstablished(uint64_t aSubscriptionId) override { mOnSubscriptionEstablished = true; }
+    void OnSubscriptionEstablished(SubscriptionId aSubscriptionId) override { mOnSubscriptionEstablished = true; }
+
+    void OnResubscriptionAttempt(CHIP_ERROR aTerminationCause, uint32_t aNextResubscribeIntervalMsec) override {}
 
     uint32_t mAttributeCount        = 0;
     uint32_t mEventCount            = 0;
@@ -222,7 +225,7 @@ void TestReadCallback::OnEventData(const app::EventHeader & aEventHeader, TLV::T
     mEventCount++;
 }
 
-void TestReadCallback::OnDone() {}
+void TestReadCallback::OnDone(app::ReadClient *) {}
 
 class TestAttrAccess : public app::AttributeAccessInterface
 {
@@ -543,10 +546,8 @@ nlTestSuite sSuite =
 
 int TestReadChunkingTests()
 {
-    TestContext gContext;
     gSuite = &sSuite;
-    nlTestRunner(&sSuite, &gContext);
-    return (nlTestRunnerStats(&sSuite));
+    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
 }
 
 CHIP_REGISTER_TEST_SUITE(TestReadChunkingTests)

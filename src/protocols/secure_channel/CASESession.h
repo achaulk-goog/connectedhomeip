@@ -26,37 +26,32 @@
 #pragma once
 
 #include <credentials/CHIPCert.h>
-#include <crypto/CHIPCryptoPAL.h>
-#if CHIP_CRYPTO_HSM
-#include <crypto/hsm/CHIPCryptoPALHsm.h>
-#endif
+#include <credentials/CertificateValidityPolicy.h>
 #include <credentials/FabricTable.h>
 #include <credentials/GroupDataProvider.h>
+#include <crypto/CHIPCryptoPAL.h>
 #include <lib/core/CHIPTLV.h>
+#include <lib/core/ScopedNodeId.h>
 #include <lib/support/Base64.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeDelegate.h>
 #include <protocols/secure_channel/CASEDestinationId.h>
 #include <protocols/secure_channel/Constants.h>
-#include <protocols/secure_channel/SessionEstablishmentDelegate.h>
+#include <protocols/secure_channel/PairingSession.h>
 #include <protocols/secure_channel/SessionEstablishmentExchangeDispatch.h>
 #include <protocols/secure_channel/SessionResumptionStorage.h>
 #include <system/SystemPacketBuffer.h>
 #include <transport/CryptoContext.h>
-#include <transport/PairingSession.h>
 #include <transport/raw/MessageHeader.h>
 #include <transport/raw/PeerAddress.h>
 
 namespace chip {
 
-#ifdef ENABLE_HSM_CASE_EPHEMERAL_KEY
-#define CASE_EPHEMERAL_KEY 0xCA5EECD0
-#endif
-
 // TODO: temporary derive from Messaging::UnsolicitedMessageHandler, actually the CASEServer should be the umh, it will be fixed
 // when implementing concurrent CASE session.
 class DLL_EXPORT CASESession : public Messaging::UnsolicitedMessageHandler,
                                public Messaging::ExchangeDelegate,
+                               public FabricTable::Delegate,
                                public PairingSession
 {
 public:
@@ -72,33 +67,41 @@ public:
      *   Initialize using configured fabrics and wait for session establishment requests.
      *
      * @param sessionManager                session manager from which to allocate a secure session object
-     * @param fabrics                       Table of fabrics that are currently configured on the device
+     * @param fabricTable                   Table of fabrics that are currently configured on the device
+     * @param policy                        Optional application-provided certificate validity policy
      * @param delegate                      Callback object
+     * @param previouslyEstablishedPeer     If a session had previously been established successfully to a peer, this should
+     *                                      be set to its scoped node-id. Else, this should be initialized to a
+     *                                      default-constructed ScopedNodeId().
+     * @param mrpLocalConfig                MRP configuration to encode into Sigma2. If not provided, it won't be encoded.
      *
      * @return CHIP_ERROR     The result of initialization
      */
-    CHIP_ERROR ListenForSessionEstablishment(
-        SessionManager & sessionManager, FabricTable * fabrics, SessionResumptionStorage * sessionResumptionStorage,
-        SessionEstablishmentDelegate * delegate,
-        Optional<ReliableMessageProtocolConfig> mrpConfig = Optional<ReliableMessageProtocolConfig>::Missing());
+    CHIP_ERROR PrepareForSessionEstablishment(SessionManager & sessionManager, FabricTable * fabricTable,
+                                              SessionResumptionStorage * sessionResumptionStorage,
+                                              Credentials::CertificateValidityPolicy * policy,
+                                              SessionEstablishmentDelegate * delegate,
+                                              const ScopedNodeId & previouslyEstablishedPeer,
+                                              Optional<ReliableMessageProtocolConfig> mrpLocalConfig);
 
     /**
      * @brief
      *   Create and send session establishment request using device's operational credentials.
      *
      * @param sessionManager                session manager from which to allocate a secure session object
-     * @param fabric                        The fabric that should be used for connecting with the peer
-     * @param peerNodeId                    Node id of the peer node
+     * @param fabricTable                   The fabric table that contains a fabric in common with the peer
+     * @param peerScopedNodeId              Node to which we want to establish a session
      * @param exchangeCtxt                  The exchange context to send and receive messages with the peer
+     * @param policy                        Optional application-provided certificate validity policy
      * @param delegate                      Callback object
      *
      * @return CHIP_ERROR      The result of initialization
      */
     CHIP_ERROR
-    EstablishSession(SessionManager & sessionManager, FabricInfo * fabric, NodeId peerNodeId,
+    EstablishSession(SessionManager & sessionManager, FabricTable * fabricTable, ScopedNodeId peerScopedNodeId,
                      Messaging::ExchangeContext * exchangeCtxt, SessionResumptionStorage * sessionResumptionStorage,
-                     SessionEstablishmentDelegate * delegate,
-                     Optional<ReliableMessageProtocolConfig> mrpConfig = Optional<ReliableMessageProtocolConfig>::Missing());
+                     Credentials::CertificateValidityPolicy * policy, SessionEstablishmentDelegate * delegate,
+                     Optional<ReliableMessageProtocolConfig> mrpLocalConfig);
 
     /**
      * @brief Set the Group Data Provider which will be used to look up IPKs
@@ -155,7 +158,22 @@ public:
     void OnResponseTimeout(Messaging::ExchangeContext * ec) override;
     Messaging::ExchangeMessageDispatch & GetMessageDispatch() override { return SessionEstablishmentExchangeDispatch::Instance(); }
 
-    FabricIndex GetFabricIndex() const { return mFabricInfo != nullptr ? mFabricInfo->GetFabricIndex() : kUndefinedFabricIndex; }
+    //// SessionDelegate ////
+    void OnSessionReleased() override;
+
+    //// FabricTable::Delegate Implementation ////
+    void OnFabricRemoved(const FabricTable & fabricTable, FabricIndex fabricIndex) override
+    {
+        (void) fabricTable;
+        InvalidateIfPendingEstablishmentOnFabric(fabricIndex);
+    }
+    void OnFabricUpdated(const chip::FabricTable & fabricTable, chip::FabricIndex fabricIndex) override
+    {
+        (void) fabricTable;
+        InvalidateIfPendingEstablishmentOnFabric(fabricIndex);
+    }
+
+    FabricIndex GetFabricIndex() const { return mFabricIndex; }
 
     // TODO: remove Clear, we should create a new instance instead reset the old instance.
     /** @brief This function zeroes out and resets the memory used by the object.
@@ -163,6 +181,7 @@ public:
     void Clear();
 
 private:
+    friend class TestCASESession;
     enum class State : uint8_t
     {
         kInitialized       = 0,
@@ -175,13 +194,23 @@ private:
         kFinishedViaResume = 7,
     };
 
-    CHIP_ERROR Init(SessionManager & sessionManager, SessionEstablishmentDelegate * delegate);
+    /*
+     * Initialize the object given a reference to the SessionManager, certificate validity policy and a delegate which will be
+     * notified of any further progress on this session.
+     *
+     * If we're either establishing or finished establishing a session to a peer in either initiator or responder
+     * roles, the node id of that peer should be provided in sessionEvictionHint. Else, it should be initialized
+     * to a default-constructed ScopedNodeId().
+     *
+     */
+    CHIP_ERROR Init(SessionManager & sessionManager, Credentials::CertificateValidityPolicy * policy,
+                    SessionEstablishmentDelegate * delegate, const ScopedNodeId & sessionEvictionHint);
 
     // On success, sets mIpk to the correct value for outgoing Sigma1 based on internal state
     CHIP_ERROR RecoverInitiatorIpk();
     // On success, sets locally maching mFabricInfo in internal state to the entry matched by
     // destinationId/initiatorRandom from processing of Sigma1, and sets mIpk to the right IPK.
-    CHIP_ERROR FindLocalNodeFromDestionationId(const ByteSpan & destinationId, const ByteSpan & initiatorRandom);
+    CHIP_ERROR FindLocalNodeFromDestinationId(const ByteSpan & destinationId, const ByteSpan & initiatorRandom);
 
     CHIP_ERROR SendSigma1();
     CHIP_ERROR HandleSigma1_and_SendSigma2(System::PacketBufferHandle && msg);
@@ -216,16 +245,7 @@ private:
     void OnSuccessStatusReport() override;
     CHIP_ERROR OnFailureStatusReport(Protocols::SecureChannel::GeneralStatusCode generalCode, uint16_t protocolCode) override;
 
-    // TODO: pull up Finish to PairingSession class
-    void Finish();
-
-    void AbortExchange();
-
-    /**
-     * Clear our reference to our exchange context pointer so that it can close
-     * itself at some later time.
-     */
-    void DiscardExchange();
+    void AbortPendingEstablish(CHIP_ERROR err);
 
     CHIP_ERROR GetHardcodedTime();
 
@@ -234,15 +254,15 @@ private:
     CHIP_ERROR ValidateReceivedMessage(Messaging::ExchangeContext * ec, const PayloadHeader & payloadHeader,
                                        const System::PacketBufferHandle & msg);
 
-    SessionEstablishmentDelegate * mDelegate = nullptr;
+    void InvalidateIfPendingEstablishmentOnFabric(FabricIndex fabricIndex);
+
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+    void SetStopSigmaHandshakeAt(Optional<State> state) { mStopHandshakeAtState = state; }
+#endif // CONFIG_BUILD_FOR_HOST_UNIT_TEST
 
     Crypto::Hash_SHA256_stream mCommissioningHash;
     Crypto::P256PublicKey mRemotePubKey;
-#ifdef ENABLE_HSM_CASE_EPHEMERAL_KEY
-    Crypto::P256KeypairHSM mEphemeralKey;
-#else
-    Crypto::P256Keypair mEphemeralKey;
-#endif
+    Crypto::P256Keypair * mEphemeralKey = nullptr;
     Crypto::P256ECDHDerivedSecret mSharedSecret;
     Credentials::ValidationContext mValidContext;
     Credentials::GroupDataProvider * mGroupDataProvider = nullptr;
@@ -250,13 +270,12 @@ private:
     uint8_t mMessageDigest[Crypto::kSHA256_Hash_Length];
     uint8_t mIPK[kIPKSize];
 
-    Messaging::ExchangeContext * mExchangeCtxt           = nullptr;
     SessionResumptionStorage * mSessionResumptionStorage = nullptr;
 
-    FabricTable * mFabricsTable    = nullptr;
-    const FabricInfo * mFabricInfo = nullptr;
-    NodeId mPeerNodeId             = kUndefinedNodeId;
-    NodeId mLocalNodeId            = kUndefinedNodeId;
+    FabricTable * mFabricsTable = nullptr;
+    FabricIndex mFabricIndex    = kUndefinedFabricIndex;
+    NodeId mPeerNodeId          = kUndefinedNodeId;
+    NodeId mLocalNodeId         = kUndefinedNodeId;
     CATValues mPeerCATs;
 
     SessionResumptionStorage::ResumptionIdStorage mResumeResumptionId; // ResumptionId which is used to resume this session
@@ -265,6 +284,10 @@ private:
     uint8_t mInitiatorRandom[kSigmaParamRandomNumberSize];
 
     State mState;
+
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+    Optional<State> mStopHandshakeAtState = Optional<State>::Missing();
+#endif // CONFIG_BUILD_FOR_HOST_UNIT_TEST
 };
 
 } // namespace chip

@@ -71,7 +71,7 @@ CHIP_ERROR CommandSender::SendCommandRequest(const SessionHandle & session, Opti
     VerifyOrReturnError(mpExchangeCtx != nullptr, CHIP_ERROR_NO_MEMORY);
     VerifyOrReturnError(!mpExchangeCtx->IsGroupExchangeContext(), CHIP_ERROR_INVALID_MESSAGE_TYPE);
 
-    mpExchangeCtx->SetResponseTimeout(timeout.ValueOr(kImMessageTimeout));
+    mpExchangeCtx->SetResponseTimeout(timeout.ValueOr(session->ComputeRoundTripTimeout(app::kExpectedIMProcessingTime)));
 
     if (mTimedInvokeTimeoutMs.HasValue())
     {
@@ -95,6 +95,9 @@ CHIP_ERROR CommandSender::SendGroupCommandRequest(const SessionHandle & session)
     VerifyOrReturnError(mpExchangeCtx->IsGroupExchangeContext(), CHIP_ERROR_INVALID_MESSAGE_TYPE);
 
     ReturnErrorOnFailure(SendInvokeRequest());
+
+    // Exchange is gone now, since it closed itself on successful send.
+    mpExchangeCtx = nullptr;
 
     Close();
     return CHIP_NO_ERROR;
@@ -274,7 +277,7 @@ CHIP_ERROR CommandSender::ProcessInvokeResponseIB(InvokeResponseIB::Parser & aIn
             ReturnErrorOnFailure(commandPath.GetEndpointId(&endpointId));
             ReturnErrorOnFailure(commandPath.GetClusterId(&clusterId));
             ReturnErrorOnFailure(commandPath.GetCommandId(&commandId));
-            commandData.GetData(&commandDataReader);
+            commandData.GetFields(&commandDataReader);
             err             = CHIP_NO_ERROR;
             hasDataResponse = true;
         }
@@ -336,7 +339,7 @@ CHIP_ERROR CommandSender::PrepareCommand(const CommandPathParams & aCommandPathP
 
     if (aStartDataStruct)
     {
-        ReturnErrorOnFailure(invokeRequest.GetWriter()->StartContainer(TLV::ContextTag(to_underlying(CommandDataIB::Tag::kData)),
+        ReturnErrorOnFailure(invokeRequest.GetWriter()->StartContainer(TLV::ContextTag(to_underlying(CommandDataIB::Tag::kFields)),
                                                                        TLV::kTLVType_Structure, mDataElementContainerType));
     }
 

@@ -192,7 +192,7 @@ CHIP_ERROR WriteHandler::SendWriteResponse(System::PacketBufferTLVWriter && aMes
     SuccessOrExit(err);
 
     VerifyOrExit(mpExchangeCtx != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
-    mpExchangeCtx->SetResponseTimeout(kImMessageTimeout);
+    mpExchangeCtx->UseSuggestedResponseTimeout(app::kExpectedIMProcessingTime);
     err = mpExchangeCtx->SendMessage(Protocols::InteractionModel::MsgType::WriteResponse, std::move(packet),
                                      mHasMoreChunks ? Messaging::SendMessageFlags::kExpectResponse
                                                     : Messaging::SendMessageFlags::kNone);
@@ -637,6 +637,18 @@ exit:
 CHIP_ERROR WriteHandler::AddStatus(const ConcreteDataAttributePath & aPath, const Protocols::InteractionModel::Status aStatus)
 {
     return AddStatus(aPath, StatusIB(aStatus));
+}
+
+CHIP_ERROR WriteHandler::AddClusterSpecificSuccess(const ConcreteDataAttributePath & aPath, ClusterStatus aClusterStatus)
+{
+    using Protocols::InteractionModel::Status;
+    return AddStatus(aPath, StatusIB(Status::Success, aClusterStatus));
+}
+
+CHIP_ERROR WriteHandler::AddClusterSpecificFailure(const ConcreteDataAttributePath & aPath, ClusterStatus aClusterStatus)
+{
+    using Protocols::InteractionModel::Status;
+    return AddStatus(aPath, StatusIB(Status::Failure, aClusterStatus));
 }
 
 CHIP_ERROR WriteHandler::AddStatus(const ConcreteDataAttributePath & aPath, const StatusIB & aStatus)

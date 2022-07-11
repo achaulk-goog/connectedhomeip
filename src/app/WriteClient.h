@@ -128,7 +128,7 @@ public:
         mpCallback(apCallback), mTimedWriteTimeoutMs(aTimedWriteTimeoutMs), mSuppressResponse(aSuppressResponse)
     {}
 
-#if CONFIG_IM_BUILD_FOR_UNIT_TEST
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
     WriteClient(Messaging::ExchangeManager * apExchangeMgr, Callback * apCallback, const Optional<uint16_t> & aTimedWriteTimeoutMs,
                 uint16_t aReservedSize) :
         mpExchangeMgr(apExchangeMgr),
@@ -214,11 +214,11 @@ public:
      *  handle calling Shutdown on itself once it decides it's done with waiting
      *  for a response (i.e. times out or gets a response). Client can specify
      *  the maximum time to wait for response (in milliseconds) via timeout parameter.
-     *  Default timeout value will be used otherwise.
+     *  If the timeout is missing or is set to System::Clock::kZero, a value based on the MRP timeouts of the session will be used.
      *  If SendWriteRequest is never called, or the call fails, the API
      *  consumer is responsible for calling Shutdown on the WriteClient.
      */
-    CHIP_ERROR SendWriteRequest(const SessionHandle & session, System::Clock::Timeout timeout = kImMessageTimeout);
+    CHIP_ERROR SendWriteRequest(const SessionHandle & session, System::Clock::Timeout timeout = System::Clock::kZero);
 
     /**
      *  Shutdown the WriteClient. This terminates this instance
@@ -398,7 +398,7 @@ private:
     // TODO: This file might be compiled with different build flags on Darwin platform (when building WriteClient.cpp and
     // CHIPClustersObjc.mm), which will cause undefined behavior when building write requests. Uncomment the #if and #endif after
     // resolving it.
-    // #if CONFIG_IM_BUILD_FOR_UNIT_TEST
+    // #if CONFIG_BUILD_FOR_HOST_UNIT_TEST
     uint16_t mReservedSize = 0;
     // #endif
 

@@ -55,6 +55,7 @@ tests:
       attribute: "current level"
       response:
           value: 254
+          saveAs: CurrentLevelValue
           constraints:
               type: uint8
 
@@ -67,25 +68,75 @@ tests:
               type: uint16
 
     - label: "Reads the MinLevel attribute"
+      PICS: LVL.S.F01
       command: "readAttribute"
       attribute: "min level"
       response:
-          value: 0
+          value: 1
+          saveAs: MinLevelValue
           constraints:
               type: uint8
+              minValue: 0
+              maxValue: 1
+
+    - label: "Reads the MinLevel attribute"
+      PICS: " !LVL.S.F01 "
+      command: "readAttribute"
+      attribute: "min level"
+      response:
+          saveAs: MinLevelValue1
+          constraints:
+              type: uint8
+              minValue: 0
+              maxValue: 1
 
     - label: "Reads the MaxLevel attribute"
+      PICS: LVL.S.F01
       command: "readAttribute"
       attribute: "max level"
       response:
+          value: 254
+          saveAs: MaxLevelValue
           constraints:
               type: uint8
+              minValue: 1
+              maxValue: 254
+
+    - label: "Reads the MaxLevel attribute"
+      PICS: " !LVL.S.F01 "
+      command: "readAttribute"
+      attribute: "max level"
+      response:
+          saveAs: MaxLevelValue1
+          constraints:
+              type: uint8
+              minValue: 1
+              maxValue: 254
+
+    - label: "Step 4b & 4C Reads the CurrentLevel attribute"
+      PICS: LVL.S.F01
+      command: "readAttribute"
+      attribute: "current level"
+      response:
+          constraints:
+              type: uint8
+              minValue: MinLevelValue
+              maxValue: MaxLevelValue
+
+    - label: "Step 4b & 4C Reads the CurrentLevel attribute"
+      PICS: " !LVL.S.F01 "
+      command: "readAttribute"
+      attribute: "current level"
+      response:
+          constraints:
+              type: uint8
+              minValue: MinLevelValue1
+              maxValue: MaxLevelValue1
 
     - label: "Reads the CurrentFrequency attribute"
       command: "readAttribute"
       attribute: "current frequency"
       response:
-          value: 0
           constraints:
               type: uint16
 
@@ -93,7 +144,7 @@ tests:
       command: "readAttribute"
       attribute: "min frequency"
       response:
-          value: 0
+          saveAs: MinFrequencyValue
           constraints:
               type: uint16
 
@@ -101,9 +152,18 @@ tests:
       command: "readAttribute"
       attribute: "max frequency"
       response:
-          value: 0
+          saveAs: MaxFrequencyValue
           constraints:
               type: uint16
+
+    - label: "Step 7b & 7C Reads the CurrentFrequency attribute"
+      command: "readAttribute"
+      attribute: "current frequency"
+      response:
+          constraints:
+              type: uint16
+              minValue: MinFrequencyValue
+              maxValue: MaxFrequencyValue
 
     - label: "Reads the OnOffTransitionTime attribute"
       command: "readAttribute"
@@ -113,28 +173,25 @@ tests:
           constraints:
               type: uint16
 
-    #Disabled due to issue - #13414
     - label: "Reads the OnLevel attribute "
-      disabled: true
-      command: "readAttribute"
-      attribute: "on level"
-      response:
-          value: null
-
-    - label: "Reads the OnLevel attribute "
+      PICS: LVL.S.F01
       command: "readAttribute"
       attribute: "on level"
       response:
           constraints:
               type: uint8
+              minValue: MinLevelValue
+              maxValue: MaxLevelValue
 
-    #Disabled due to issue - #13414
-    - label: "Reads the OnTransitionTime attribute "
-      disabled: true
+    - label: "Reads the OnLevel attribute "
+      PICS: " !LVL.S.F01 "
       command: "readAttribute"
-      attribute: "on transition time"
+      attribute: "on level"
       response:
-          value: null
+          constraints:
+              type: uint8
+              minValue: MinLevelValue1
+              maxValue: MaxLevelValue1
 
     - label: "Reads the OnTransitionTime attribute "
       command: "readAttribute"
@@ -142,14 +199,6 @@ tests:
       response:
           constraints:
               type: uint16
-
-    #Disabled due to issue - #13414
-    - label: "Reads the OffTransitionTime attribute "
-      disabled: true
-      command: "readAttribute"
-      attribute: "off transition time"
-      response:
-          value: null
 
     - label: "Reads the OffTransitionTime attribute "
       command: "readAttribute"
@@ -173,10 +222,9 @@ tests:
           constraints:
               type: map8
 
-    #Disabled due to issue - #13414
     - label: "Reads the StartUpCurrentLevel attribute "
-      disabled: true
       command: "readAttribute"
       attribute: "start up current level"
       response:
-          value: null
+          constraints:
+              type: uint8

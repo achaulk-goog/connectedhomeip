@@ -47,7 +47,6 @@ tests:
               maxValue: 9999
 
     - label: "Reads constraints of attribute: MaxMeasuredValue"
-      disabled: true
       command: "readAttribute"
       attribute: "max measured value"
       response:

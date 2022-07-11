@@ -18,6 +18,12 @@ config:
     nodeId: 0x12344321
     cluster: "Channel"
     endpoint: 1
+    majornumber:
+        type: INT16U
+        defaultValue: 9
+    minornumber:
+        type: INT16U
+        defaultValue: 1
 
 tests:
     - label: "Wait for the commissioned device to be retrieved"
@@ -28,45 +34,45 @@ tests:
               - name: "nodeId"
                 value: nodeId
 
-    #Disabled due to issue- #13029
     - label: "Reads the ChannelList attribute from the DUT"
-      disabled: true
+      PICS: MC_CHANNEL.S.A0000
       command: "readAttribute"
       attribute: "ChannelList"
       response:
-          saveAs: tvchannellistvalues
           constraints:
               type: list
 
-    #Disabled due to issue- #13029
     - label: "Reads the CurrentChannel attribute from the DUT"
-      disabled: true
+      PICS: MC_CHANNEL.S.A0002
       command: "readAttribute"
       attribute: "CurrentChannel"
       response:
-          value: channellistvalues
+          value: [majorNumber: majornumber, minorNumber: minornumber]
 
-    #Disabled due to issue - #13084
     - label: "Sends a SkipChannel command to the DUT"
-      disabled: true
+      PICS: MC_CHANNEL.S.C0003
       command: "SkipChannel"
       arguments:
           values:
               - name: "Count"
                 value: 1
 
-    - label: "log a command"
+    - label: "Verify that the channel has changed on the device"
       cluster: "LogCommands"
       command: "UserPrompt"
+      PICS: PICS_USER_PROMPT
       arguments:
           values:
               - name: "message"
-                value: "verify that the channel has changed on the device"
+                value: "Please enter 'y' if channel has changed on the device"
+              - name: "expectedValue"
+                value: "y"
 
-    #Disabled due to issue- #13029
     - label: "Reads the CurrentChannel attribute from the DUT"
-      disabled: true
+      PICS: MC_CHANNEL.S.A0002
       command: "readAttribute"
       attribute: "CurrentChannel"
       response:
-          value: channellistvalues
+          value: [majorNumber: majornumber, minorNumber: minornumber + 1]
+          constraints:
+              type: list

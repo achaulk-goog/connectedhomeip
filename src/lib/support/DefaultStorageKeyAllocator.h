@@ -19,6 +19,7 @@
 #include <app/ConcreteAttributePath.h>
 #include <app/util/basic-types.h>
 #include <lib/core/CHIPPersistentStorageDelegate.h>
+#include <lib/core/GroupId.h>
 #include <lib/support/EnforceFormat.h>
 #include <lib/support/logging/Constants.h>
 #include <string.h>
@@ -49,9 +50,12 @@ public:
     const char * FabricMetadata(FabricIndex fabric) { return Format("f/%x/m", fabric); }
     const char * FabricOpKey(FabricIndex fabric) { return Format("f/%x/o", fabric); }
 
-    // FailSafeContext
-    const char * FailSafeContextKey() { return Format("g/fs/c"); }
+    // Fail-safe handling
+    const char * FailSafeCommitMarkerKey() { return Format("g/fs/c"); }
     static const char * FailSafeNetworkConfig() { return "g/fs/n"; }
+
+    // LastKnownGoodTime
+    const char * LastKnownGoodTimeKey() { return Format("g/lkgt"); }
 
     // Session resumption
     const char * FabricSession(FabricIndex fabric, NodeId nodeId)
@@ -62,16 +66,11 @@ public:
     const char * SessionResumption(const char * resumptionIdBase64) { return Format("g/s/%s", resumptionIdBase64); }
 
     // Access Control
-    const char * AccessControlExtensionEntry(FabricIndex fabric) { return Format("f/%x/ac/1", fabric); }
-
-    // TODO: We should probably store the fabric-specific parts of the ACL list
-    // under keys starting with "f/%x/".
-    const char * AccessControlList() { return Format("g/acl"); }
-    const char * AccessControlEntry(size_t index)
+    const char * AccessControlAclEntry(FabricIndex fabric, size_t index)
     {
-        // This cast will never overflow because the number of ACL entries will be low.
-        return Format("g/acl/%x", static_cast<unsigned int>(index));
+        return Format("f/%x/ac/0/%x", fabric, static_cast<unsigned>(index));
     }
+    const char * AccessControlExtensionEntry(FabricIndex fabric) { return Format("f/%x/ac/1", fabric); }
 
     // Group Message Counters
     const char * GroupDataCounter() { return Format("g/gdc"); }
@@ -113,9 +112,9 @@ public:
     static const char * OTATargetVersion() { return "g/o/tv"; }
 
     // Event number counter.
-    const char * IMEventNumber() { return Format("g/im/e"); }
+    const char * IMEventNumber() { return Format("g/im/ec"); }
 
-private:
+protected:
     // The ENFORCE_FORMAT args are "off by one" because this is a class method,
     // with an implicit "this" as first arg.
     const char * ENFORCE_FORMAT(2, 3) Format(const char * format, ...)
@@ -127,6 +126,7 @@ private:
         return mKeyName;
     }
 
+private:
     char mKeyName[PersistentStorageDelegate::kKeyLengthMax + 1] = { 0 };
 };
 

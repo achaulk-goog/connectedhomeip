@@ -51,8 +51,6 @@ template("chip_data_model") {
   _use_default_im_dispatch = !defined(invoker.use_default_im_dispatch) ||
                              invoker.use_default_im_dispatch
 
-  _use_tests_apis = defined(invoker.use_tests_apis) && invoker.use_tests_apis
-
   source_set(_data_model_name) {
     forward_variables_from(invoker,
                            "*",
@@ -73,9 +71,6 @@ template("chip_data_model") {
       "${_app_root}/clusters/color-control-server/color-control-server.h",
       "${_app_root}/clusters/door-lock-server/door-lock-server.h",
       "${_app_root}/clusters/groups-server/groups-server.h",
-      "${_app_root}/clusters/ias-zone-client/ias-zone-client.h",
-      "${_app_root}/clusters/ias-zone-server/ias-zone-server-tokens.h",
-      "${_app_root}/clusters/ias-zone-server/ias-zone-server.h",
       "${_app_root}/clusters/identify-server/identify-server.h",
       "${_app_root}/clusters/level-control/level-control.h",
       "${_app_root}/clusters/on-off-server/on-off-server.h",
@@ -89,7 +84,6 @@ template("chip_data_model") {
       "${_app_root}/util/attribute-table.cpp",
       "${_app_root}/util/binding-table.cpp",
       "${_app_root}/util/binding-table.h",
-      "${_app_root}/util/client-api.cpp",
       "${_app_root}/util/ember-compatibility-functions.cpp",
       "${_app_root}/util/ember-print.cpp",
       "${_app_root}/util/error-mapping.cpp",
@@ -139,6 +133,8 @@ template("chip_data_model") {
           "${_app_root}/clusters/${cluster}/DefaultOTARequestorUserConsent.h",
           "${_app_root}/clusters/${cluster}/ExtendedOTARequestorDriver.cpp",
           "${_app_root}/clusters/${cluster}/OTARequestorStorage.h",
+          "${_app_root}/clusters/${cluster}/OTATestEventTriggerDelegate.cpp",
+          "${_app_root}/clusters/${cluster}/OTATestEventTriggerDelegate.h",
         ]
       } else if (cluster == "bindings") {
         sources += [
@@ -163,11 +159,6 @@ template("chip_data_model") {
       if (_use_default_im_dispatch) {
         sources +=
             [ "${invoker.zap_pregenerated_dir}/IMClusterCommandHandler.cpp" ]
-      }
-
-      if (_use_tests_apis) {
-        sources +=
-            [ "${invoker.zap_pregenerated_dir}/tests/CHIPClustersTest.h" ]
       }
     }
 

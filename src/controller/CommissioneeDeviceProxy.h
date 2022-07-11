@@ -28,7 +28,6 @@
 
 #include <app/CommandSender.h>
 #include <app/DeviceProxy.h>
-#include <app/util/attribute-filter.h>
 #include <app/util/basic-types.h>
 #include <controller/CHIPDeviceControllerSystemState.h>
 #include <controller/OperationalCredentialsDelegate.h>
@@ -55,7 +54,7 @@ struct ControllerDeviceInitParams
     Messaging::ExchangeManager * exchangeMgr = nullptr;
 };
 
-class CommissioneeDeviceProxy : public DeviceProxy, public SessionReleaseDelegate
+class CommissioneeDeviceProxy : public DeviceProxy, public SessionDelegate
 {
 public:
     ~CommissioneeDeviceProxy() override;
@@ -104,9 +103,9 @@ public:
     /**
      *  In case there exists an open session to the device, mark it as expired.
      */
-    CHIP_ERROR CloseSession();
+    void CloseSession();
 
-    CHIP_ERROR Disconnect() override { return CloseSession(); }
+    void Disconnect() override { CloseSession(); }
 
     /**
      * @brief
@@ -134,14 +133,12 @@ public:
     bool IsSessionSetupInProgress() const { return mState == ConnectionState::Connecting; }
 
     NodeId GetDeviceId() const override { return mPeerId.GetNodeId(); }
+    void ShutdownSubscriptions() override {}
     PeerId GetPeerId() const { return mPeerId; }
     CHIP_ERROR SetPeerId(ByteSpan rcac, ByteSpan noc) override;
     const Transport::PeerAddress & GetPeerAddress() const { return mDeviceAddress; }
 
-    bool MatchesSession(const SessionHandle & session) const { return mSecureSession.Contains(session); }
-
-    SessionHolder & GetSecureSessionHolder() { return mSecureSession; }
-    chip::Optional<SessionHandle> GetSecureSession() const override { return mSecureSession.ToOptional(); }
+    chip::Optional<SessionHandle> GetSecureSession() const override { return mSecureSession.Get(); }
 
     Messaging::ExchangeManager * GetExchangeManager() const override { return mExchangeMgr; }
 

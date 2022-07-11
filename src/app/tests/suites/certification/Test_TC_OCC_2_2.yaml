@@ -36,10 +36,16 @@ tests:
           value: 0
           saveAs: OccupancyValue
 
-    #Issue #10815 Disabled as UI prompts required for user action
     - label: "Operate on DUT to change the occupancy status"
-      disabled: true
-      PICS: MANUAL_OCCUPANCY_CHANGE
+      cluster: "LogCommands"
+      command: "UserPrompt"
+      PICS: PICS_USER_PROMPT
+      arguments:
+          values:
+              - name: "message"
+                value: "Please enter 'y' for success"
+              - name: "expectedValue"
+                value: "y"
 
     - label: "Reads back Occupancy attribute from DUT after few seconds"
       command: "readAttribute"

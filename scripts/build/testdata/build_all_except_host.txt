@@ -4,6 +4,9 @@ cd "{root}"
 # Generating ameba-amebad-all-clusters
 bash -c '$AMEBA_PATH/project/realtek_amebaD_va0_example/GCC-RELEASE/build.sh {root} ninja {out}/ameba-amebad-all-clusters all-clusters-app'
 
+# Generating ameba-amebad-all-clusters-minimal
+bash -c '$AMEBA_PATH/project/realtek_amebaD_va0_example/GCC-RELEASE/build.sh {root} ninja {out}/ameba-amebad-all-clusters-minimal all-clusters-minimal-app'
+
 # Generating ameba-amebad-light
 bash -c '$AMEBA_PATH/project/realtek_amebaD_va0_example/GCC-RELEASE/build.sh {root} ninja {out}/ameba-amebad-light lighting-app'
 
@@ -151,6 +154,9 @@ gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/exa
 # Generating cc13x2x7_26x2x7-all-clusters
 gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/all-clusters-app/cc13x2x7_26x2x7 '--args=ti_sysconfig_root="TEST_TI_SYSCONFIG_ROOT"' {out}/cc13x2x7_26x2x7-all-clusters
 
+# Generating cc13x2x7_26x2x7-all-clusters-minimal
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/all-clusters-minimal-app/cc13x2x7_26x2x7 '--args=ti_sysconfig_root="TEST_TI_SYSCONFIG_ROOT"' {out}/cc13x2x7_26x2x7-all-clusters-minimal
+
 # Generating cc13x2x7_26x2x7-lock-ftd
 gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lock-app/cc13x2x7_26x2x7 '--args=ti_sysconfig_root="TEST_TI_SYSCONFIG_ROOT" chip_openthread_ftd=true' {out}/cc13x2x7_26x2x7-lock-ftd
 
@@ -162,6 +168,9 @@ gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/exa
 
 # Generating cc13x2x7_26x2x7-pump-controller
 gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/pump-controller-app/cc13x2x7_26x2x7 '--args=ti_sysconfig_root="TEST_TI_SYSCONFIG_ROOT"' {out}/cc13x2x7_26x2x7-pump-controller
+
+# Generating cc13x2x7_26x2x7-shell
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/shell/cc13x2x7_26x2x7 '--args=ti_sysconfig_root="TEST_TI_SYSCONFIG_ROOT"' {out}/cc13x2x7_26x2x7-shell
 
 # Generating cyw30739-cyw930739m2evb_01-light
 gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/cyw30739 {out}/cyw30739-cyw930739m2evb_01-light
@@ -522,6 +531,17 @@ bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh;
 export SDKCONFIG_DEFAULTS={out}/esp32-c3devkit-all-clusters/sdkconfig.defaults
 idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-c3devkit-all-clusters reconfigure'
 
+# Generating esp32-c3devkit-all-clusters-minimal
+mkdir -p {out}/esp32-c3devkit-all-clusters-minimal
+
+cp examples/all-clusters-minimal-app/esp32/sdkconfig_c3devkit.defaults {out}/esp32-c3devkit-all-clusters-minimal/sdkconfig.defaults
+
+rm -f examples/all-clusters-minimal-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-c3devkit-all-clusters-minimal/sdkconfig.defaults
+idf.py -C examples/all-clusters-minimal-app/esp32 -B {out}/esp32-c3devkit-all-clusters-minimal reconfigure'
+
 # Generating esp32-devkitc-all-clusters
 mkdir -p {out}/esp32-devkitc-all-clusters
 
@@ -545,6 +565,30 @@ bash -c 'echo -e "\nCONFIG_DISABLE_IPV4=y\n" >>{out}/esp32-devkitc-all-clusters-
 bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
 export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-all-clusters-ipv6only/sdkconfig.defaults
 idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-devkitc-all-clusters-ipv6only reconfigure'
+
+# Generating esp32-devkitc-all-clusters-minimal
+mkdir -p {out}/esp32-devkitc-all-clusters-minimal
+
+cp examples/all-clusters-minimal-app/esp32/sdkconfig.defaults {out}/esp32-devkitc-all-clusters-minimal/sdkconfig.defaults
+
+rm -f examples/all-clusters-minimal-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-all-clusters-minimal/sdkconfig.defaults
+idf.py -C examples/all-clusters-minimal-app/esp32 -B {out}/esp32-devkitc-all-clusters-minimal reconfigure'
+
+# Generating esp32-devkitc-all-clusters-minimal-ipv6only
+mkdir -p {out}/esp32-devkitc-all-clusters-minimal-ipv6only
+
+cp examples/all-clusters-minimal-app/esp32/sdkconfig.defaults {out}/esp32-devkitc-all-clusters-minimal-ipv6only/sdkconfig.defaults
+
+rm -f examples/all-clusters-minimal-app/esp32/sdkconfig
+
+bash -c 'echo -e "\nCONFIG_DISABLE_IPV4=y\n" >>{out}/esp32-devkitc-all-clusters-minimal-ipv6only/sdkconfig.defaults'
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-all-clusters-minimal-ipv6only/sdkconfig.defaults
+idf.py -C examples/all-clusters-minimal-app/esp32 -B {out}/esp32-devkitc-all-clusters-minimal-ipv6only reconfigure'
 
 # Generating esp32-devkitc-bridge
 mkdir -p {out}/esp32-devkitc-bridge
@@ -578,6 +622,28 @@ rm -f examples/lock-app/esp32/sdkconfig
 bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
 export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-lock/sdkconfig.defaults
 idf.py -C examples/lock-app/esp32 -B {out}/esp32-devkitc-lock reconfigure'
+
+# Generating esp32-devkitc-ota-requestor
+mkdir -p {out}/esp32-devkitc-ota-requestor
+
+cp examples/ota-requestor-app/esp32/sdkconfig.defaults {out}/esp32-devkitc-ota-requestor/sdkconfig.defaults
+
+rm -f examples/ota-requestor-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-ota-requestor/sdkconfig.defaults
+idf.py -C examples/ota-requestor-app/esp32 -B {out}/esp32-devkitc-ota-requestor reconfigure'
+
+# Generating esp32-devkitc-ota-requestor-rpc
+mkdir -p {out}/esp32-devkitc-ota-requestor-rpc
+
+cp examples/ota-requestor-app/esp32/sdkconfig_rpc.defaults {out}/esp32-devkitc-ota-requestor-rpc/sdkconfig.defaults
+
+rm -f examples/ota-requestor-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-ota-requestor-rpc/sdkconfig.defaults
+idf.py -C examples/ota-requestor-app/esp32 -B {out}/esp32-devkitc-ota-requestor-rpc reconfigure'
 
 # Generating esp32-devkitc-shell
 mkdir -p {out}/esp32-devkitc-shell
@@ -636,6 +702,54 @@ bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh;
 export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-ipv6only/sdkconfig.defaults
 idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-m5stack-all-clusters-ipv6only reconfigure'
 
+# Generating esp32-m5stack-all-clusters-minimal
+mkdir -p {out}/esp32-m5stack-all-clusters-minimal
+
+cp examples/all-clusters-minimal-app/esp32/sdkconfig_m5stack.defaults {out}/esp32-m5stack-all-clusters-minimal/sdkconfig.defaults
+
+rm -f examples/all-clusters-minimal-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-minimal/sdkconfig.defaults
+idf.py -C examples/all-clusters-minimal-app/esp32 -B {out}/esp32-m5stack-all-clusters-minimal reconfigure'
+
+# Generating esp32-m5stack-all-clusters-minimal-ipv6only
+mkdir -p {out}/esp32-m5stack-all-clusters-minimal-ipv6only
+
+cp examples/all-clusters-minimal-app/esp32/sdkconfig_m5stack.defaults {out}/esp32-m5stack-all-clusters-minimal-ipv6only/sdkconfig.defaults
+
+rm -f examples/all-clusters-minimal-app/esp32/sdkconfig
+
+bash -c 'echo -e "\nCONFIG_DISABLE_IPV4=y\n" >>{out}/esp32-m5stack-all-clusters-minimal-ipv6only/sdkconfig.defaults'
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-minimal-ipv6only/sdkconfig.defaults
+idf.py -C examples/all-clusters-minimal-app/esp32 -B {out}/esp32-m5stack-all-clusters-minimal-ipv6only reconfigure'
+
+# Generating esp32-m5stack-all-clusters-minimal-rpc
+mkdir -p {out}/esp32-m5stack-all-clusters-minimal-rpc
+
+cp examples/all-clusters-minimal-app/esp32/sdkconfig_m5stack_rpc.defaults {out}/esp32-m5stack-all-clusters-minimal-rpc/sdkconfig.defaults
+
+rm -f examples/all-clusters-minimal-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-minimal-rpc/sdkconfig.defaults
+idf.py -C examples/all-clusters-minimal-app/esp32 -B {out}/esp32-m5stack-all-clusters-minimal-rpc reconfigure'
+
+# Generating esp32-m5stack-all-clusters-minimal-rpc-ipv6only
+mkdir -p {out}/esp32-m5stack-all-clusters-minimal-rpc-ipv6only
+
+cp examples/all-clusters-minimal-app/esp32/sdkconfig_m5stack_rpc.defaults {out}/esp32-m5stack-all-clusters-minimal-rpc-ipv6only/sdkconfig.defaults
+
+rm -f examples/all-clusters-minimal-app/esp32/sdkconfig
+
+bash -c 'echo -e "\nCONFIG_DISABLE_IPV4=y\n" >>{out}/esp32-m5stack-all-clusters-minimal-rpc-ipv6only/sdkconfig.defaults'
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-minimal-rpc-ipv6only/sdkconfig.defaults
+idf.py -C examples/all-clusters-minimal-app/esp32 -B {out}/esp32-m5stack-all-clusters-minimal-rpc-ipv6only reconfigure'
+
 # Generating esp32-m5stack-all-clusters-rpc
 mkdir -p {out}/esp32-m5stack-all-clusters-rpc
 
@@ -660,6 +774,28 @@ bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh;
 export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-rpc-ipv6only/sdkconfig.defaults
 idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-m5stack-all-clusters-rpc-ipv6only reconfigure'
 
+# Generating esp32-m5stack-ota-requestor
+mkdir -p {out}/esp32-m5stack-ota-requestor
+
+cp examples/ota-requestor-app/esp32/sdkconfig_m5stack.defaults {out}/esp32-m5stack-ota-requestor/sdkconfig.defaults
+
+rm -f examples/ota-requestor-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-ota-requestor/sdkconfig.defaults
+idf.py -C examples/ota-requestor-app/esp32 -B {out}/esp32-m5stack-ota-requestor reconfigure'
+
+# Generating esp32-m5stack-ota-requestor-rpc
+mkdir -p {out}/esp32-m5stack-ota-requestor-rpc
+
+cp examples/ota-requestor-app/esp32/sdkconfig_m5stack_rpc.defaults {out}/esp32-m5stack-ota-requestor-rpc/sdkconfig.defaults
+
+rm -f examples/ota-requestor-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-ota-requestor-rpc/sdkconfig.defaults
+idf.py -C examples/ota-requestor-app/esp32 -B {out}/esp32-m5stack-ota-requestor-rpc reconfigure'
+
 # Generating esp32-qemu-tests
 mkdir -p {out}/esp32-qemu-tests
 
@@ -672,57 +808,46 @@ export SDKCONFIG_DEFAULTS={out}/esp32-qemu-tests/sdkconfig.defaults
 idf.py -C src/test_driver/esp32 -B {out}/esp32-qemu-tests reconfigure'
 
 # Generating imx-all-clusters-app
-bash -c '
-PKG_CONFIG_PATH="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux/lib/aarch64-linux-gnu/pkgconfig" \
- gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/all-clusters-app/linux '"'"'--args=target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar"'"'"' {out}/imx-all-clusters-app'
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/all-clusters-app/linux '--args=treat_warnings_as_errors=false target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" optimize_debug=true' {out}/imx-all-clusters-app
 
 # Generating imx-all-clusters-app-release
-bash -c '
-PKG_CONFIG_PATH="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux/lib/aarch64-linux-gnu/pkgconfig" \
- gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/all-clusters-app/linux '"'"'--args=target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" is_debug=false'"'"' {out}/imx-all-clusters-app-release'
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/all-clusters-app/linux '--args=treat_warnings_as_errors=false target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" is_debug=false' {out}/imx-all-clusters-app-release
+
+# Generating imx-all-clusters-minimal-app
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/all-clusters-minimal-app/linux '--args=treat_warnings_as_errors=false target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" optimize_debug=true' {out}/imx-all-clusters-minimal-app
+
+# Generating imx-all-clusters-minimal-app-release
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/all-clusters-minimal-app/linux '--args=treat_warnings_as_errors=false target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" is_debug=false' {out}/imx-all-clusters-minimal-app-release
 
 # Generating imx-chip-tool
-bash -c '
-PKG_CONFIG_PATH="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux/lib/aarch64-linux-gnu/pkgconfig" \
- gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/chip-tool '"'"'--args=target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar"'"'"' {out}/imx-chip-tool'
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/chip-tool '--args=treat_warnings_as_errors=false target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" optimize_debug=true' {out}/imx-chip-tool
 
 # Generating imx-chip-tool-release
-bash -c '
-PKG_CONFIG_PATH="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux/lib/aarch64-linux-gnu/pkgconfig" \
- gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/chip-tool '"'"'--args=target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" is_debug=false'"'"' {out}/imx-chip-tool-release'
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/chip-tool '--args=treat_warnings_as_errors=false target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" is_debug=false' {out}/imx-chip-tool-release
 
 # Generating imx-lighting-app
-bash -c '
-PKG_CONFIG_PATH="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux/lib/aarch64-linux-gnu/pkgconfig" \
- gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/linux '"'"'--args=target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar"'"'"' {out}/imx-lighting-app'
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/linux '--args=treat_warnings_as_errors=false target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" optimize_debug=true' {out}/imx-lighting-app
 
 # Generating imx-lighting-app-release
-bash -c '
-PKG_CONFIG_PATH="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux/lib/aarch64-linux-gnu/pkgconfig" \
- gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/linux '"'"'--args=target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" is_debug=false'"'"' {out}/imx-lighting-app-release'
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/linux '--args=treat_warnings_as_errors=false target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" is_debug=false' {out}/imx-lighting-app-release
 
 # Generating imx-ota-provider-app
-bash -c '
-PKG_CONFIG_PATH="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux/lib/aarch64-linux-gnu/pkgconfig" \
- gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/ota-provider-app/linux '"'"'--args=target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar"'"'"' {out}/imx-ota-provider-app'
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/ota-provider-app/linux '--args=treat_warnings_as_errors=false target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" optimize_debug=true' {out}/imx-ota-provider-app
 
 # Generating imx-ota-provider-app-release
-bash -c '
-PKG_CONFIG_PATH="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux/lib/aarch64-linux-gnu/pkgconfig" \
- gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/ota-provider-app/linux '"'"'--args=target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" is_debug=false'"'"' {out}/imx-ota-provider-app-release'
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/ota-provider-app/linux '--args=treat_warnings_as_errors=false target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" is_debug=false' {out}/imx-ota-provider-app-release
 
 # Generating imx-thermostat
-bash -c '
-PKG_CONFIG_PATH="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux/lib/aarch64-linux-gnu/pkgconfig" \
- gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/thermostat/linux '"'"'--args=target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar"'"'"' {out}/imx-thermostat'
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/thermostat/linux '--args=treat_warnings_as_errors=false target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" optimize_debug=true' {out}/imx-thermostat
 
 # Generating imx-thermostat-release
-bash -c '
-PKG_CONFIG_PATH="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux/lib/aarch64-linux-gnu/pkgconfig" \
- gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/thermostat/linux '"'"'--args=target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" is_debug=false'"'"' {out}/imx-thermostat-release'
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/thermostat/linux '--args=treat_warnings_as_errors=false target_os="linux" target_cpu="arm64" arm_arch="armv8-a" import("//build_overrides/build.gni") custom_toolchain="${build_root}/toolchain/custom" sysroot="IMX_SDK_ROOT/sysroots/cortexa53-crypto-poky-linux" target_cflags=[ "-DCHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME=\"mlan0\"", "-DCHIP_DEVICE_CONFIG_LINUX_DHCPC_CMD=\"udhcpc -b -i %s \"" ] target_cc="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc" target_cxx="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++" target_ar="IMX_SDK_ROOT/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-ar" is_debug=false' {out}/imx-thermostat-release
 
 # Generating infineon-p6-all-clusters
 gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/all-clusters-app/p6 '--args=p6_board="CY8CKIT-062S2-43012"' {out}/infineon-p6-all-clusters
+
+# Generating infineon-p6-all-clusters-minimal
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/all-clusters-minimal-app/p6 '--args=p6_board="CY8CKIT-062S2-43012"' {out}/infineon-p6-all-clusters-minimal
 
 # Generating infineon-p6-light
 gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/p6 '--args=p6_board="CY8CKIT-062S2-43012"' {out}/infineon-p6-light
@@ -766,6 +891,24 @@ mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/all-cl
 
 # Generating mbed-CY8CPROTO_062_4343W-all-clusters-develop
 cmake -S {root}/examples/all-clusters-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-all-clusters-develop -GNinja -DCMAKE_BUILD_TYPE=develop -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-all-clusters-minimal-debug
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/all-clusters-minimal-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-all-clusters-minimal-debug --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-all-clusters-minimal-debug
+cmake -S {root}/examples/all-clusters-minimal-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-all-clusters-minimal-debug -GNinja -DCMAKE_BUILD_TYPE=debug -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-all-clusters-minimal-develop
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/all-clusters-minimal-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-all-clusters-minimal-develop --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-all-clusters-minimal-develop
+cmake -S {root}/examples/all-clusters-minimal-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-all-clusters-minimal-develop -GNinja -DCMAKE_BUILD_TYPE=develop -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-all-clusters-minimal-release
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/all-clusters-minimal-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-all-clusters-minimal-release --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-all-clusters-minimal-release
+cmake -S {root}/examples/all-clusters-minimal-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-all-clusters-minimal-release -GNinja -DCMAKE_BUILD_TYPE=release -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
 
 # Generating config mbed-CY8CPROTO_062_4343W-all-clusters-release
 mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/all-clusters-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-all-clusters-release --mbed-os-path {root}/third_party/mbed-os/repo
@@ -855,6 +998,11 @@ bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
 export GNUARMEMB_TOOLCHAIN_PATH="$PW_ARM_CIPD_INSTALL_DIR";
 west build --cmake-only -d {out}/nrf-nrf52840dk-all-clusters -b nrf52840dk_nrf52840 {root}/examples/all-clusters-app/nrfconnect'
 
+# Generating nrf-nrf52840dk-all-clusters-minimal
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_ARM_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf52840dk-all-clusters-minimal -b nrf52840dk_nrf52840 {root}/examples/all-clusters-minimal-app/nrfconnect'
+
 # Generating nrf-nrf52840dk-light
 bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
 export GNUARMEMB_TOOLCHAIN_PATH="$PW_ARM_CIPD_INSTALL_DIR";
@@ -890,6 +1038,11 @@ bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
 export GNUARMEMB_TOOLCHAIN_PATH="$PW_ARM_CIPD_INSTALL_DIR";
 west build --cmake-only -d {out}/nrf-nrf52840dongle-all-clusters -b nrf52840dongle_nrf52840 {root}/examples/all-clusters-app/nrfconnect'
 
+# Generating nrf-nrf52840dongle-all-clusters-minimal
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_ARM_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf52840dongle-all-clusters-minimal -b nrf52840dongle_nrf52840 {root}/examples/all-clusters-minimal-app/nrfconnect'
+
 # Generating nrf-nrf52840dongle-light
 bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
 export GNUARMEMB_TOOLCHAIN_PATH="$PW_ARM_CIPD_INSTALL_DIR";
@@ -899,6 +1052,11 @@ west build --cmake-only -d {out}/nrf-nrf52840dongle-light -b nrf52840dongle_nrf5
 bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
 export GNUARMEMB_TOOLCHAIN_PATH="$PW_ARM_CIPD_INSTALL_DIR";
 west build --cmake-only -d {out}/nrf-nrf5340dk-all-clusters -b nrf5340dk_nrf5340_cpuapp {root}/examples/all-clusters-app/nrfconnect'
+
+# Generating nrf-nrf5340dk-all-clusters-minimal
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_ARM_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf5340dk-all-clusters-minimal -b nrf5340dk_nrf5340_cpuapp {root}/examples/all-clusters-minimal-app/nrfconnect'
 
 # Generating nrf-nrf5340dk-light
 bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
@@ -949,32 +1107,66 @@ export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
 source "$ZEPHYR_BASE/zephyr-env.sh";
 west build --cmake-only -d {out}/telink-tlsr9518adk80d-light -b tlsr9518adk80d {root}/examples/lighting-app/telink'
 
+# Generating telink-tlsr9518adk80d-light-switch
+bash -c 'export ZEPHYR_BASE="$TELINK_ZEPHYR_BASE"
+export ZEPHYR_SDK_INSTALL_DIR="$TELINK_ZEPHYR_SDK_DIR"
+export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
+source "$ZEPHYR_BASE/zephyr-env.sh";
+west build --cmake-only -d {out}/telink-tlsr9518adk80d-light-switch -b tlsr9518adk80d {root}/examples/light-switch-app/telink'
+
+# Generating tizen-arm-chip-tool
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/chip-tool '--args=target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-chip-tool
+
+# Generating tizen-arm-chip-tool-asan
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/chip-tool '--args=is_asan=true target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-chip-tool-asan
+
+# Generating tizen-arm-chip-tool-no-ble
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/chip-tool '--args=chip_config_network_layer_ble=false target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-chip-tool-no-ble
+
+# Generating tizen-arm-chip-tool-no-ble-asan
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/chip-tool '--args=chip_config_network_layer_ble=false is_asan=true target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-chip-tool-no-ble-asan
+
+# Generating tizen-arm-chip-tool-no-ble-no-wifi
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/chip-tool '--args=chip_config_network_layer_ble=false chip_enable_wifi=false target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-chip-tool-no-ble-no-wifi
+
+# Generating tizen-arm-chip-tool-no-ble-no-wifi-asan
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/chip-tool '--args=chip_config_network_layer_ble=false chip_enable_wifi=false is_asan=true target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-chip-tool-no-ble-no-wifi-asan
+
+# Generating tizen-arm-chip-tool-no-wifi
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/chip-tool '--args=chip_enable_wifi=false target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-chip-tool-no-wifi
+
+# Generating tizen-arm-chip-tool-no-wifi-asan
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/chip-tool '--args=chip_enable_wifi=false is_asan=true target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-chip-tool-no-wifi-asan
+
 # Generating tizen-arm-light
-gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/linux '--args=target_os="tizen" target_cpu="arm" sysroot="TEST_TIZEN_HOME"' {out}/tizen-arm-light
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/tizen '--args=target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-light
 
 # Generating tizen-arm-light-asan
-gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/linux '--args=is_asan=true target_os="tizen" target_cpu="arm" sysroot="TEST_TIZEN_HOME"' {out}/tizen-arm-light-asan
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/tizen '--args=is_asan=true target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-light-asan
 
 # Generating tizen-arm-light-no-ble
-gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/linux '--args=chip_config_network_layer_ble=false target_os="tizen" target_cpu="arm" sysroot="TEST_TIZEN_HOME"' {out}/tizen-arm-light-no-ble
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/tizen '--args=chip_config_network_layer_ble=false target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-light-no-ble
 
 # Generating tizen-arm-light-no-ble-asan
-gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/linux '--args=chip_config_network_layer_ble=false is_asan=true target_os="tizen" target_cpu="arm" sysroot="TEST_TIZEN_HOME"' {out}/tizen-arm-light-no-ble-asan
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/tizen '--args=chip_config_network_layer_ble=false is_asan=true target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-light-no-ble-asan
 
 # Generating tizen-arm-light-no-ble-no-wifi
-gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/linux '--args=chip_config_network_layer_ble=false chip_enable_wifi=false target_os="tizen" target_cpu="arm" sysroot="TEST_TIZEN_HOME"' {out}/tizen-arm-light-no-ble-no-wifi
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/tizen '--args=chip_config_network_layer_ble=false chip_enable_wifi=false target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-light-no-ble-no-wifi
 
 # Generating tizen-arm-light-no-ble-no-wifi-asan
-gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/linux '--args=chip_config_network_layer_ble=false chip_enable_wifi=false is_asan=true target_os="tizen" target_cpu="arm" sysroot="TEST_TIZEN_HOME"' {out}/tizen-arm-light-no-ble-no-wifi-asan
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/tizen '--args=chip_config_network_layer_ble=false chip_enable_wifi=false is_asan=true target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-light-no-ble-no-wifi-asan
 
 # Generating tizen-arm-light-no-wifi
-gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/linux '--args=chip_enable_wifi=false target_os="tizen" target_cpu="arm" sysroot="TEST_TIZEN_HOME"' {out}/tizen-arm-light-no-wifi
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/tizen '--args=chip_enable_wifi=false target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-light-no-wifi
 
 # Generating tizen-arm-light-no-wifi-asan
-gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/linux '--args=chip_enable_wifi=false is_asan=true target_os="tizen" target_cpu="arm" sysroot="TEST_TIZEN_HOME"' {out}/tizen-arm-light-no-wifi-asan
+gn gen --check --fail-on-unused-args --export-compile-commands --root={root}/examples/lighting-app/tizen '--args=chip_enable_wifi=false is_asan=true target_os="tizen" target_cpu="arm" tizen_sdk_root="TEST_TIZEN_SDK_ROOT" tizen_sdk_sysroot="TEST_TIZEN_SDK_SYSROOT"' {out}/tizen-arm-light-no-wifi-asan
 
 # Building ameba-amebad-all-clusters
 ninja -C {out}/ameba-amebad-all-clusters
+
+# Building ameba-amebad-all-clusters-minimal
+ninja -C {out}/ameba-amebad-all-clusters-minimal
 
 # Building ameba-amebad-light
 ninja -C {out}/ameba-amebad-light
@@ -1021,8 +1213,6 @@ ninja -C {out}/android-arm-chip-tv-casting-app
 # Prepare Native libs android-arm-chip-tv-casting-app
 mkdir -p {root}/examples/tv-casting-app/android/App/app/libs/jniLibs/armeabi-v7a
 
-cp {out}/android-arm-chip-tv-casting-app/lib/jni/armeabi-v7a/libCHIPController.so {root}/examples/tv-casting-app/android/App/app/libs/jniLibs/armeabi-v7a/libCHIPController.so
-
 cp {out}/android-arm-chip-tv-casting-app/lib/jni/armeabi-v7a/libc++_shared.so {root}/examples/tv-casting-app/android/App/app/libs/jniLibs/armeabi-v7a/libc++_shared.so
 
 cp {out}/android-arm-chip-tv-casting-app/lib/jni/armeabi-v7a/libTvCastingApp.so {root}/examples/tv-casting-app/android/App/app/libs/jniLibs/armeabi-v7a/libTvCastingApp.so
@@ -1030,8 +1220,6 @@ cp {out}/android-arm-chip-tv-casting-app/lib/jni/armeabi-v7a/libTvCastingApp.so 
 cp {out}/android-arm-chip-tv-casting-app/lib/third_party/connectedhomeip/src/platform/android/AndroidPlatform.jar {root}/examples/tv-casting-app/android/App/app/libs/AndroidPlatform.jar
 
 cp {out}/android-arm-chip-tv-casting-app/lib/third_party/connectedhomeip/src/app/server/java/CHIPAppServer.jar {root}/examples/tv-casting-app/android/App/app/libs/CHIPAppServer.jar
-
-cp {out}/android-arm-chip-tv-casting-app/lib/third_party/connectedhomeip/src/controller/java/CHIPController.jar {root}/examples/tv-casting-app/android/App/app/libs/CHIPController.jar
 
 cp {out}/android-arm-chip-tv-casting-app/lib/TvCastingApp.jar {root}/examples/tv-casting-app/android/App/app/libs/TvCastingApp.jar
 
@@ -1112,8 +1300,6 @@ ninja -C {out}/android-arm64-chip-tv-casting-app
 # Prepare Native libs android-arm64-chip-tv-casting-app
 mkdir -p {root}/examples/tv-casting-app/android/App/app/libs/jniLibs/arm64-v8a
 
-cp {out}/android-arm64-chip-tv-casting-app/lib/jni/arm64-v8a/libCHIPController.so {root}/examples/tv-casting-app/android/App/app/libs/jniLibs/arm64-v8a/libCHIPController.so
-
 cp {out}/android-arm64-chip-tv-casting-app/lib/jni/arm64-v8a/libc++_shared.so {root}/examples/tv-casting-app/android/App/app/libs/jniLibs/arm64-v8a/libc++_shared.so
 
 cp {out}/android-arm64-chip-tv-casting-app/lib/jni/arm64-v8a/libTvCastingApp.so {root}/examples/tv-casting-app/android/App/app/libs/jniLibs/arm64-v8a/libTvCastingApp.so
@@ -1121,8 +1307,6 @@ cp {out}/android-arm64-chip-tv-casting-app/lib/jni/arm64-v8a/libTvCastingApp.so 
 cp {out}/android-arm64-chip-tv-casting-app/lib/third_party/connectedhomeip/src/platform/android/AndroidPlatform.jar {root}/examples/tv-casting-app/android/App/app/libs/AndroidPlatform.jar
 
 cp {out}/android-arm64-chip-tv-casting-app/lib/third_party/connectedhomeip/src/app/server/java/CHIPAppServer.jar {root}/examples/tv-casting-app/android/App/app/libs/CHIPAppServer.jar
-
-cp {out}/android-arm64-chip-tv-casting-app/lib/third_party/connectedhomeip/src/controller/java/CHIPController.jar {root}/examples/tv-casting-app/android/App/app/libs/CHIPController.jar
 
 cp {out}/android-arm64-chip-tv-casting-app/lib/TvCastingApp.jar {root}/examples/tv-casting-app/android/App/app/libs/TvCastingApp.jar
 
@@ -1255,6 +1439,9 @@ ninja -C {out}/bl602-light
 # Building cc13x2x7_26x2x7-all-clusters
 ninja -C {out}/cc13x2x7_26x2x7-all-clusters
 
+# Building cc13x2x7_26x2x7-all-clusters-minimal
+ninja -C {out}/cc13x2x7_26x2x7-all-clusters-minimal
+
 # Building cc13x2x7_26x2x7-lock-ftd
 ninja -C {out}/cc13x2x7_26x2x7-lock-ftd
 
@@ -1266,6 +1453,9 @@ ninja -C {out}/cc13x2x7_26x2x7-pump
 
 # Building cc13x2x7_26x2x7-pump-controller
 ninja -C {out}/cc13x2x7_26x2x7-pump-controller
+
+# Building cc13x2x7_26x2x7-shell
+ninja -C {out}/cc13x2x7_26x2x7-shell
 
 # Building cyw30739-cyw930739m2evb_01-light
 ninja -C {out}/cyw30739-cyw930739m2evb_01-light
@@ -1622,6 +1812,13 @@ bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh;
 export SDKCONFIG_DEFAULTS={out}/esp32-c3devkit-all-clusters/sdkconfig.defaults
 idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-c3devkit-all-clusters build'
 
+rm -f examples/all-clusters-minimal-app/esp32/sdkconfig
+
+# Building esp32-c3devkit-all-clusters-minimal
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-c3devkit-all-clusters-minimal/sdkconfig.defaults
+idf.py -C examples/all-clusters-minimal-app/esp32 -B {out}/esp32-c3devkit-all-clusters-minimal build'
+
 rm -f examples/all-clusters-app/esp32/sdkconfig
 
 # Building esp32-devkitc-all-clusters
@@ -1635,6 +1832,20 @@ rm -f examples/all-clusters-app/esp32/sdkconfig
 bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
 export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-all-clusters-ipv6only/sdkconfig.defaults
 idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-devkitc-all-clusters-ipv6only build'
+
+rm -f examples/all-clusters-minimal-app/esp32/sdkconfig
+
+# Building esp32-devkitc-all-clusters-minimal
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-all-clusters-minimal/sdkconfig.defaults
+idf.py -C examples/all-clusters-minimal-app/esp32 -B {out}/esp32-devkitc-all-clusters-minimal build'
+
+rm -f examples/all-clusters-minimal-app/esp32/sdkconfig
+
+# Building esp32-devkitc-all-clusters-minimal-ipv6only
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-all-clusters-minimal-ipv6only/sdkconfig.defaults
+idf.py -C examples/all-clusters-minimal-app/esp32 -B {out}/esp32-devkitc-all-clusters-minimal-ipv6only build'
 
 rm -f examples/bridge-app/esp32/sdkconfig
 
@@ -1656,6 +1867,20 @@ rm -f examples/lock-app/esp32/sdkconfig
 bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
 export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-lock/sdkconfig.defaults
 idf.py -C examples/lock-app/esp32 -B {out}/esp32-devkitc-lock build'
+
+rm -f examples/ota-requestor-app/esp32/sdkconfig
+
+# Building esp32-devkitc-ota-requestor
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-ota-requestor/sdkconfig.defaults
+idf.py -C examples/ota-requestor-app/esp32 -B {out}/esp32-devkitc-ota-requestor build'
+
+rm -f examples/ota-requestor-app/esp32/sdkconfig
+
+# Building esp32-devkitc-ota-requestor-rpc
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-ota-requestor-rpc/sdkconfig.defaults
+idf.py -C examples/ota-requestor-app/esp32 -B {out}/esp32-devkitc-ota-requestor-rpc build'
 
 rm -f examples/shell/esp32/sdkconfig
 
@@ -1692,6 +1917,34 @@ bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh;
 export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-ipv6only/sdkconfig.defaults
 idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-m5stack-all-clusters-ipv6only build'
 
+rm -f examples/all-clusters-minimal-app/esp32/sdkconfig
+
+# Building esp32-m5stack-all-clusters-minimal
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-minimal/sdkconfig.defaults
+idf.py -C examples/all-clusters-minimal-app/esp32 -B {out}/esp32-m5stack-all-clusters-minimal build'
+
+rm -f examples/all-clusters-minimal-app/esp32/sdkconfig
+
+# Building esp32-m5stack-all-clusters-minimal-ipv6only
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-minimal-ipv6only/sdkconfig.defaults
+idf.py -C examples/all-clusters-minimal-app/esp32 -B {out}/esp32-m5stack-all-clusters-minimal-ipv6only build'
+
+rm -f examples/all-clusters-minimal-app/esp32/sdkconfig
+
+# Building esp32-m5stack-all-clusters-minimal-rpc
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-minimal-rpc/sdkconfig.defaults
+idf.py -C examples/all-clusters-minimal-app/esp32 -B {out}/esp32-m5stack-all-clusters-minimal-rpc build'
+
+rm -f examples/all-clusters-minimal-app/esp32/sdkconfig
+
+# Building esp32-m5stack-all-clusters-minimal-rpc-ipv6only
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-minimal-rpc-ipv6only/sdkconfig.defaults
+idf.py -C examples/all-clusters-minimal-app/esp32 -B {out}/esp32-m5stack-all-clusters-minimal-rpc-ipv6only build'
+
 rm -f examples/all-clusters-app/esp32/sdkconfig
 
 # Building esp32-m5stack-all-clusters-rpc
@@ -1706,6 +1959,20 @@ bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh;
 export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-rpc-ipv6only/sdkconfig.defaults
 idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-m5stack-all-clusters-rpc-ipv6only build'
 
+rm -f examples/ota-requestor-app/esp32/sdkconfig
+
+# Building esp32-m5stack-ota-requestor
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-ota-requestor/sdkconfig.defaults
+idf.py -C examples/ota-requestor-app/esp32 -B {out}/esp32-m5stack-ota-requestor build'
+
+rm -f examples/ota-requestor-app/esp32/sdkconfig
+
+# Building esp32-m5stack-ota-requestor-rpc
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-ota-requestor-rpc/sdkconfig.defaults
+idf.py -C examples/ota-requestor-app/esp32 -B {out}/esp32-m5stack-ota-requestor-rpc build'
+
 rm -f src/test_driver/esp32/sdkconfig
 
 # Building esp32-qemu-tests
@@ -1718,6 +1985,12 @@ ninja -C {out}/imx-all-clusters-app
 
 # Building imx-all-clusters-app-release
 ninja -C {out}/imx-all-clusters-app-release
+
+# Building imx-all-clusters-minimal-app
+ninja -C {out}/imx-all-clusters-minimal-app
+
+# Building imx-all-clusters-minimal-app-release
+ninja -C {out}/imx-all-clusters-minimal-app-release
 
 # Building imx-chip-tool
 ninja -C {out}/imx-chip-tool
@@ -1745,6 +2018,9 @@ ninja -C {out}/imx-thermostat-release
 
 # Building infineon-p6-all-clusters
 ninja -C {out}/infineon-p6-all-clusters
+
+# Building infineon-p6-all-clusters-minimal
+ninja -C {out}/infineon-p6-all-clusters-minimal
 
 # Building infineon-p6-light
 ninja -C {out}/infineon-p6-light
@@ -1778,6 +2054,24 @@ bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-all-clusters-develop/chip-*'
 
 # Building mbed-CY8CPROTO_062_4343W-all-clusters-develop
 cmake --build {out}/mbed-CY8CPROTO_062_4343W-all-clusters-develop
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-all-clusters-minimal-debug
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-all-clusters-minimal-debug/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-all-clusters-minimal-debug
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-all-clusters-minimal-debug
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-all-clusters-minimal-develop
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-all-clusters-minimal-develop/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-all-clusters-minimal-develop
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-all-clusters-minimal-develop
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-all-clusters-minimal-release
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-all-clusters-minimal-release/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-all-clusters-minimal-release
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-all-clusters-minimal-release
 
 # Remove old artifacts mbed-CY8CPROTO_062_4343W-all-clusters-release
 bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-all-clusters-release/chip-*'
@@ -1866,6 +2160,9 @@ ctest --build-nocmake -V --output-on-failure --test-dir {out}/nrf-native-posix-6
 # Building nrf-nrf52840dk-all-clusters
 ninja -C {out}/nrf-nrf52840dk-all-clusters
 
+# Building nrf-nrf52840dk-all-clusters-minimal
+ninja -C {out}/nrf-nrf52840dk-all-clusters-minimal
+
 # Building nrf-nrf52840dk-light
 ninja -C {out}/nrf-nrf52840dk-light
 
@@ -1887,11 +2184,17 @@ ninja -C {out}/nrf-nrf52840dk-shell
 # Building nrf-nrf52840dongle-all-clusters
 ninja -C {out}/nrf-nrf52840dongle-all-clusters
 
+# Building nrf-nrf52840dongle-all-clusters-minimal
+ninja -C {out}/nrf-nrf52840dongle-all-clusters-minimal
+
 # Building nrf-nrf52840dongle-light
 ninja -C {out}/nrf-nrf52840dongle-light
 
 # Building nrf-nrf5340dk-all-clusters
 ninja -C {out}/nrf-nrf5340dk-all-clusters
+
+# Building nrf-nrf5340dk-all-clusters-minimal
+ninja -C {out}/nrf-nrf5340dk-all-clusters-minimal
 
 # Building nrf-nrf5340dk-light
 ninja -C {out}/nrf-nrf5340dk-light
@@ -1925,6 +2228,33 @@ ninja -C {out}/qpg-shell
 
 # Building telink-tlsr9518adk80d-light
 ninja -C {out}/telink-tlsr9518adk80d-light
+
+# Building telink-tlsr9518adk80d-light-switch
+ninja -C {out}/telink-tlsr9518adk80d-light-switch
+
+# Building tizen-arm-chip-tool
+ninja -C {out}/tizen-arm-chip-tool
+
+# Building tizen-arm-chip-tool-asan
+ninja -C {out}/tizen-arm-chip-tool-asan
+
+# Building tizen-arm-chip-tool-no-ble
+ninja -C {out}/tizen-arm-chip-tool-no-ble
+
+# Building tizen-arm-chip-tool-no-ble-asan
+ninja -C {out}/tizen-arm-chip-tool-no-ble-asan
+
+# Building tizen-arm-chip-tool-no-ble-no-wifi
+ninja -C {out}/tizen-arm-chip-tool-no-ble-no-wifi
+
+# Building tizen-arm-chip-tool-no-ble-no-wifi-asan
+ninja -C {out}/tizen-arm-chip-tool-no-ble-no-wifi-asan
+
+# Building tizen-arm-chip-tool-no-wifi
+ninja -C {out}/tizen-arm-chip-tool-no-wifi
+
+# Building tizen-arm-chip-tool-no-wifi-asan
+ninja -C {out}/tizen-arm-chip-tool-no-wifi-asan
 
 # Building tizen-arm-light
 ninja -C {out}/tizen-arm-light

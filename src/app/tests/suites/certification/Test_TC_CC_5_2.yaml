@@ -39,81 +39,105 @@ tests:
       response:
           value: 1
 
-    - label:
-          "Check current x attribute value matched the value sent by the last
-          command"
-      disabled: true
+    - label: "Check current x attribute value  matched before any change"
       command: "readAttribute"
-      attribute: "current x"
+      PICS: CC.S.A0003
+      attribute: "CurrentX"
       response:
-          value: 200
+          constraints:
+              type: uint16
+              minValue: 0
+              maxValue: 65279
 
-    - label:
-          "Check current y attribute value matched the value sent by the last
-          command"
-      disabled: true
+    - label: "Check current y attribute value matched before any change"
       command: "readAttribute"
-      attribute: "current y"
+      PICS: CC.S.A0004
+      attribute: "CurrentY"
       response:
-          value: 300
+          constraints:
+              type: uint16
+              minValue: 0
+              maxValue: 65279
 
     - label: "Move Color command"
       command: "MoveColor"
+      PICS: CC.S.C08.Rsp
       arguments:
           values:
               - name: "rateX"
                 value: 15
               - name: "rateY"
                 value: 20
-              - name: "optionsMask"
+              - name: "OptionsMask"
                 value: 0
-              - name: "optionsOverride"
+              - name: "OptionsOverride"
                 value: 0
+
+    - label: "Wait 150ms"
+      cluster: "DelayCommands"
+      command: "WaitForMs"
+      arguments:
+          values:
+              - name: "ms"
+                value: 150
 
     - label:
           "Check current x attribute value matched the value sent by the last
           command"
-      disabled: true
+      PICS: CC.S.A0003
       command: "readAttribute"
-      attribute: "current x"
+      attribute: "CurrentX"
       response:
-          value: -1
+          constraints:
+              type: uint16
+              minValue: 0
+              maxValue: 65279
 
     - label:
           "Check current y attribute value matched the value sent by the last
           command"
-      disabled: true
+      PICS: CC.S.A0004
       command: "readAttribute"
-      attribute: "current y"
+      attribute: "CurrentY"
       response:
-          value: -1
+          constraints:
+              type: uint16
+              minValue: 0
+              maxValue: 65279
 
     - label: "Stop Move Step command"
+      PICS: CC.S.C47.Rsp
       command: "StopMoveStep"
       arguments:
           values:
-              - name: "optionsMask"
+              - name: "OptionsMask"
                 value: 0
-              - name: "optionsOverride"
+              - name: "OptionsOverride"
                 value: 0
 
     - label:
           "Check current x attribute value matched the value sent by the last
           command"
-      disabled: true
+      PICS: CC.S.A0003
       command: "readAttribute"
-      attribute: "current x"
+      attribute: "CurrentX"
       response:
-          value: -1
+          constraints:
+              type: uint16
+              minValue: 0
+              maxValue: 65279
 
     - label:
           "Check current y attribute value matched the value sent by the last
           command"
-      disabled: true
+      PICS: CC.S.A0004
       command: "readAttribute"
-      attribute: "current y"
+      attribute: "CurrentY"
       response:
-          value: -1
+          constraints:
+              type: uint16
+              minValue: 0
+              maxValue: 65279
 
     - label: "Turn off light that we turned on"
       cluster: "On/Off"

@@ -28,18 +28,18 @@ tests:
               - name: "nodeId"
                 value: nodeId
 
-    - label: "Send RootMenu"
-      disabled: true
-      command: "SendKey"
-      arguments:
-          values:
-              - name: "keyCode"
-                value: 0x09
-
-    - label: "Send SetupMenu"
-      disabled: true
+    - label: "TH sends CEC Settings Keys(0x0A) to DUT"
+      PICS: MC_KEYPADINPUT.S.LK
       command: "SendKey"
       arguments:
           values:
               - name: "keyCode"
                 value: 0x0A
+
+    - label: "TH sends CEC Home Keys(0x09) to DUT"
+      PICS: MC_KEYPADINPUT.S.LK
+      command: "SendKey"
+      arguments:
+          values:
+              - name: "keyCode"
+                value: 0x09

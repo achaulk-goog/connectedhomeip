@@ -22,6 +22,7 @@
 #include "LightSwitch.h"
 #include "ThreadUtil.h"
 
+#include <DeviceInfoProviderImpl.h>
 #include <app/clusters/identify-server/identify-server.h>
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
@@ -38,8 +39,8 @@
 #endif
 
 #include <dk_buttons_and_leds.h>
-#include <logging/log.h>
-#include <zephyr.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/zephyr.h>
 
 using namespace ::chip;
 using namespace ::chip::app;
@@ -48,8 +49,10 @@ using namespace ::chip::DeviceLayer;
 
 LOG_MODULE_DECLARE(app, CONFIG_MATTER_LOG_LEVEL);
 namespace {
-constexpr EndpointId kLightSwitchEndpointId    = 1;
-constexpr EndpointId kLightEndpointId          = 1;
+constexpr EndpointId kLightDimmerSwitchEndpointId  = 1;
+constexpr EndpointId kLightGenericSwitchEndpointId = 2;
+constexpr EndpointId kLightEndpointId              = 1;
+
 constexpr uint32_t kFactoryResetTriggerTimeout = 3000;
 constexpr uint32_t kFactoryResetCancelWindow   = 3000;
 constexpr uint32_t kDimmerTriggeredTimeout     = 500;
@@ -79,6 +82,8 @@ bool sWasDimmerTriggered = false;
 k_timer sFunctionTimer;
 k_timer sDimmerPressKeyTimer;
 k_timer sDimmerTimer;
+
+chip::DeviceLayer::DeviceInfoProviderImpl gExampleDeviceInfoProvider;
 
 } /* namespace */
 
@@ -112,10 +117,8 @@ CHIP_ERROR AppTask::Init()
 
 #ifdef CONFIG_OPENTHREAD_MTD_SED
     err = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_SleepyEndDevice);
-#elif CONFIG_OPENTHREAD_MTD
-    err = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_MinimalEndDevice);
 #else
-    err = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_Router);
+    err = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_MinimalEndDevice);
 #endif
     if (err != CHIP_NO_ERROR)
     {
@@ -123,7 +126,7 @@ CHIP_ERROR AppTask::Init()
         return err;
     }
 
-    LightSwitch::GetInstance().Init(kLightSwitchEndpointId);
+    LightSwitch::GetInstance().Init(kLightDimmerSwitchEndpointId, kLightGenericSwitchEndpointId);
 
     // Initialize UI components
     LEDWidget::InitGpio();
@@ -157,13 +160,21 @@ CHIP_ERROR AppTask::Init()
 #endif
 
     // Print initial configs
+#if CONFIG_CHIP_FACTORY_DATA
+    ReturnErrorOnFailure(mFactoryDataProvider.Init());
+    SetDeviceInstanceInfoProvider(&mFactoryDataProvider);
+    SetDeviceAttestationCredentialsProvider(&mFactoryDataProvider);
+    SetCommissionableDataProvider(&mFactoryDataProvider);
+#else
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
+#endif
     static chip::CommonCaseDeviceServerInitParams initParams;
     ReturnErrorOnFailure(initParams.InitializeStaticResourcesBeforeServerInit());
     ReturnErrorOnFailure(Server::GetInstance().Init(initParams));
-#if CONFIG_CHIP_OTA_REQUESTOR
-    InitBasicOTARequestor();
-#endif
+
+    gExampleDeviceInfoProvider.SetStorageDelegate(&Server::GetInstance().GetPersistentStorage());
+    chip::DeviceLayer::SetDeviceInfoProvider(&gExampleDeviceInfoProvider);
+
     ConfigurationMgr().LogDeviceConfig();
     PrintOnboardingCodes(RendezvousInformationFlags(RendezvousInformationFlag::kBLE));
 
@@ -207,10 +218,14 @@ void AppTask::ButtonPushHandler(AppEvent * aEvent)
             sAppTask.StartTimer(Timer::Function, kFactoryResetTriggerTimeout);
             sAppTask.mFunction = TimerFunction::SoftwareUpdate;
             break;
-        case SWITCH_BUTTON:
+        case DIMMER_SWITCH_BUTTON:
             LOG_INF("Button has been pressed, keep in this state for at least 500 ms to change light sensitivity of binded "
                     "lighting devices.");
             sAppTask.StartTimer(Timer::DimmerTrigger, kDimmerTriggeredTimeout);
+            break;
+        case GENERIC_SWITCH_BUTTON:
+            LOG_INF("GenericSwitch: InitialPress");
+            LightSwitch::GetInstance().GenericSwitchInitialPress();
             break;
         default:
             break;
@@ -248,7 +263,7 @@ void AppTask::ButtonReleaseHandler(AppEvent * aEvent)
                 LOG_INF("Factory Reset has been canceled");
             }
             break;
-        case SWITCH_BUTTON:
+        case DIMMER_SWITCH_BUTTON:
             if (!sWasDimmerTriggered)
             {
                 LightSwitch::GetInstance().InitiateActionSwitch(LightSwitch::Action::Toggle);
@@ -256,6 +271,10 @@ void AppTask::ButtonReleaseHandler(AppEvent * aEvent)
             sAppTask.CancelTimer(Timer::Dimmer);
             sAppTask.CancelTimer(Timer::DimmerTrigger);
             sWasDimmerTriggered = false;
+            break;
+        case GENERIC_SWITCH_BUTTON:
+            LOG_INF("GenericSwitch: ShortRelease");
+            LightSwitch::GetInstance().GenericSwitchReleasePress();
             break;
         default:
             break;
@@ -382,6 +401,14 @@ void AppTask::ChipEventHandler(const ChipDeviceEvent * aEvent, intptr_t /* arg *
         sIsThreadEnabled     = ConnectivityMgr().IsThreadEnabled();
         UpdateStatusLED();
         break;
+    case DeviceEventType::kThreadConnectivityChange:
+#if CONFIG_CHIP_OTA_REQUESTOR
+        if (aEvent->ThreadConnectivityChange.Result == kConnectivity_Established)
+        {
+            InitBasicOTARequestor();
+        }
+#endif
+        break;
     default:
         if ((ConnectivityMgr().NumBLEConnections() == 0) && (!sIsThreadProvisioned || !sIsThreadEnabled))
         {
@@ -458,16 +485,31 @@ void AppTask::ButtonEventHandler(uint32_t aButtonState, uint32_t aHasChanged)
         sAppTask.PostEvent(&buttonEvent);
     }
 
-    if (SWITCH_BUTTON_MASK & aButtonState & aHasChanged)
+    if (DIMMER_SWITCH_BUTTON_MASK & aButtonState & aHasChanged)
     {
-        buttonEvent.ButtonEvent.PinNo  = SWITCH_BUTTON;
+        buttonEvent.ButtonEvent.PinNo  = DIMMER_SWITCH_BUTTON;
         buttonEvent.ButtonEvent.Action = AppEvent::kButtonPushEvent;
         buttonEvent.Handler            = ButtonPushHandler;
         sAppTask.PostEvent(&buttonEvent);
     }
-    else if (SWITCH_BUTTON_MASK & aHasChanged)
+    else if (DIMMER_SWITCH_BUTTON_MASK & aHasChanged)
     {
-        buttonEvent.ButtonEvent.PinNo  = SWITCH_BUTTON;
+        buttonEvent.ButtonEvent.PinNo  = DIMMER_SWITCH_BUTTON;
+        buttonEvent.ButtonEvent.Action = AppEvent::kButtonReleaseEvent;
+        buttonEvent.Handler            = ButtonReleaseHandler;
+        sAppTask.PostEvent(&buttonEvent);
+    }
+
+    if (GENERIC_SWITCH_BUTTON_MASK & aButtonState & aHasChanged)
+    {
+        buttonEvent.ButtonEvent.PinNo  = GENERIC_SWITCH_BUTTON;
+        buttonEvent.ButtonEvent.Action = AppEvent::kButtonPushEvent;
+        buttonEvent.Handler            = ButtonPushHandler;
+        sAppTask.PostEvent(&buttonEvent);
+    }
+    else if (GENERIC_SWITCH_BUTTON_MASK & aHasChanged)
+    {
+        buttonEvent.ButtonEvent.PinNo  = GENERIC_SWITCH_BUTTON;
         buttonEvent.ButtonEvent.Action = AppEvent::kButtonReleaseEvent;
         buttonEvent.Handler            = ButtonReleaseHandler;
         sAppTask.PostEvent(&buttonEvent);

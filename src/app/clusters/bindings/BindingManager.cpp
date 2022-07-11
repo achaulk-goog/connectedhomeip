@@ -23,9 +23,9 @@
 
 namespace {
 
-class BindingFabricTableDelegate : public chip::FabricTableDelegate
+class BindingFabricTableDelegate : public chip::FabricTable::Delegate
 {
-    void OnFabricDeletedFromStorage(chip::CompressedFabricId compressedFabricId, chip::FabricIndex fabricIndex)
+    void OnFabricRemoved(const chip::FabricTable & fabricTable, chip::FabricIndex fabricIndex) override
     {
         chip::BindingTable & bindingTable = chip::BindingTable::GetInstance();
         auto iter                         = bindingTable.begin();
@@ -40,14 +40,8 @@ class BindingFabricTableDelegate : public chip::FabricTableDelegate
                 ++iter;
             }
         }
-        chip::BindingManager::GetInstance().FabricRemoved(compressedFabricId, fabricIndex);
+        chip::BindingManager::GetInstance().FabricRemoved(fabricIndex);
     }
-
-    // Intentionally left blank
-    void OnFabricRetrievedFromStorage(chip::FabricInfo * fabricInfo) {}
-
-    // Intentionally left blank
-    void OnFabricPersistedToStorage(chip::FabricInfo * fabricInfo) {}
 };
 
 BindingFabricTableDelegate gFabricTableDelegate;
@@ -58,7 +52,7 @@ namespace {
 
 chip::PeerId PeerIdForNode(chip::FabricTable * fabricTable, chip::FabricIndex fabric, chip::NodeId node)
 {
-    chip::FabricInfo * fabricInfo = fabricTable->FindFabricWithIndex(fabric);
+    const chip::FabricInfo * fabricInfo = fabricTable->FindFabricWithIndex(fabric);
     if (fabricInfo == nullptr)
     {
         return chip::PeerId();
@@ -117,9 +111,10 @@ CHIP_ERROR BindingManager::EstablishConnection(FabricIndex fabric, NodeId node)
     VerifyOrReturnError(mInitParams.mCASESessionManager != nullptr, CHIP_ERROR_INCORRECT_STATE);
     PeerId peer = PeerIdForNode(mInitParams.mFabricTable, fabric, node);
     VerifyOrReturnError(peer.GetNodeId() != kUndefinedNodeId, CHIP_ERROR_NOT_FOUND);
-    CHIP_ERROR error =
-        mInitParams.mCASESessionManager->FindOrEstablishSession(peer, &mOnConnectedCallback, &mOnConnectionFailureCallback);
-    if (error == CHIP_ERROR_NO_MEMORY)
+
+    mLastSessionEstablishmentError = CHIP_NO_ERROR;
+    mInitParams.mCASESessionManager->FindOrEstablishSession(peer, &mOnConnectedCallback, &mOnConnectionFailureCallback);
+    if (mLastSessionEstablishmentError == CHIP_ERROR_NO_MEMORY)
     {
         // Release the least recently used entry
         // TODO: Some reference counting mechanism shall be added the CASESessionManager
@@ -132,11 +127,11 @@ CHIP_ERROR BindingManager::EstablishConnection(FabricIndex fabric, NodeId node)
             PeerId lruPeer = PeerIdForNode(mInitParams.mFabricTable, fabricToRemove, nodeToRemove);
             mInitParams.mCASESessionManager->ReleaseSession(lruPeer);
             // Now retry
-            error =
-                mInitParams.mCASESessionManager->FindOrEstablishSession(peer, &mOnConnectedCallback, &mOnConnectionFailureCallback);
+            mLastSessionEstablishmentError = CHIP_NO_ERROR;
+            mInitParams.mCASESessionManager->FindOrEstablishSession(peer, &mOnConnectedCallback, &mOnConnectionFailureCallback);
         }
     }
-    return error;
+    return mLastSessionEstablishmentError;
 }
 
 void BindingManager::HandleDeviceConnected(void * context, OperationalDeviceProxy * device)
@@ -178,12 +173,16 @@ void BindingManager::HandleDeviceConnectionFailure(PeerId peerId, CHIP_ERROR err
     // Simply release the entry, the connection will be re-established as needed.
     ChipLogError(AppServer, "Failed to establish connection to node 0x" ChipLogFormatX64, ChipLogValueX64(peerId.GetNodeId()));
     mInitParams.mCASESessionManager->ReleaseSession(peerId);
+    mLastSessionEstablishmentError = error;
 }
 
-void BindingManager::FabricRemoved(CompressedFabricId compressedFabricId, FabricIndex fabricIndex)
+void BindingManager::FabricRemoved(FabricIndex fabricIndex)
 {
     mPendingNotificationMap.RemoveAllEntriesForFabric(fabricIndex);
-    mInitParams.mCASESessionManager->ReleaseSessionsForFabric(compressedFabricId);
+
+    // TODO(#18436): NOC cluster should handle fabric removal without needing binding manager
+    //               to execute such a release. Currently not done because paths were not tested.
+    mInitParams.mCASESessionManager->ReleaseSessionsForFabric(fabricIndex);
 }
 
 CHIP_ERROR BindingManager::NotifyBoundClusterChanged(EndpointId endpoint, ClusterId cluster, void * context)
@@ -203,7 +202,7 @@ CHIP_ERROR BindingManager::NotifyBoundClusterChanged(EndpointId endpoint, Cluste
         {
             if (iter->type == EMBER_UNICAST_BINDING)
             {
-                FabricInfo * fabricInfo = mInitParams.mFabricTable->FindFabricWithIndex(iter->fabricIndex);
+                const FabricInfo * fabricInfo = mInitParams.mFabricTable->FindFabricWithIndex(iter->fabricIndex);
                 VerifyOrReturnError(fabricInfo != nullptr, CHIP_ERROR_NOT_FOUND);
                 PeerId peer                         = fabricInfo->GetPeerIdForNode(iter->nodeId);
                 OperationalDeviceProxy * peerDevice = mInitParams.mCASESessionManager->FindExistingSession(peer);

@@ -32,6 +32,7 @@
 #include <app/RequiredPrivilege.h>
 #include <app/util/MatterCallbacks.h>
 #include <credentials/GroupDataProvider.h>
+#include <lib/core/CHIPTLVData.hpp>
 #include <lib/core/CHIPTLVUtilities.hpp>
 #include <lib/support/TypeTraits.h>
 #include <protocols/secure_channel/Constants.h>
@@ -244,6 +245,18 @@ CHIP_ERROR CommandHandler::SendCommandResponse()
     return CHIP_NO_ERROR;
 }
 
+namespace {
+// We use this when the sender did not actually provide a CommandFields struct,
+// to avoid downstream consumers having to worry about cases when there is or is
+// not a struct available.  We use an empty struct with anonymous tag, since we
+// can't use a context tag at top level, and consumers should not care about the
+// tag here).
+constexpr uint8_t sNoFields[] = {
+    CHIP_TLV_STRUCTURE(CHIP_TLV_TAG_ANONYMOUS),
+    CHIP_TLV_END_OF_CONTAINER,
+};
+} // anonymous namespace
+
 CHIP_ERROR CommandHandler::ProcessCommandDataIB(CommandDataIB::Parser & aCommandElement)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
@@ -302,13 +315,14 @@ CHIP_ERROR CommandHandler::ProcessCommandDataIB(CommandDataIB::Parser & aCommand
         return AddStatus(concretePath, Protocols::InteractionModel::Status::NeedsTimedInteraction);
     }
 
-    err = aCommandElement.GetData(&commandDataReader);
+    err = aCommandElement.GetFields(&commandDataReader);
     if (CHIP_END_OF_TLV == err)
     {
         ChipLogDetail(DataManagement,
                       "Received command without data for Endpoint=%u Cluster=" ChipLogFormatMEI " Command=" ChipLogFormatMEI,
                       concretePath.mEndpointId, ChipLogValueMEI(concretePath.mClusterId), ChipLogValueMEI(concretePath.mCommandId));
-        err = CHIP_NO_ERROR;
+        commandDataReader.Init(sNoFields);
+        err = commandDataReader.Next();
     }
     if (CHIP_NO_ERROR == err)
     {
@@ -359,13 +373,14 @@ CHIP_ERROR CommandHandler::ProcessGroupCommandDataIB(CommandDataIB::Parser & aCo
     ChipLogDetail(DataManagement, "Received group command for Group=%u Cluster=" ChipLogFormatMEI " Command=" ChipLogFormatMEI,
                   groupId, ChipLogValueMEI(clusterId), ChipLogValueMEI(commandId));
 
-    err = aCommandElement.GetData(&commandDataReader);
+    err = aCommandElement.GetFields(&commandDataReader);
     if (CHIP_END_OF_TLV == err)
     {
         ChipLogDetail(DataManagement,
                       "Received command without data for Group=%u Cluster=" ChipLogFormatMEI " Command=" ChipLogFormatMEI, groupId,
                       ChipLogValueMEI(clusterId), ChipLogValueMEI(commandId));
-        err = CHIP_NO_ERROR;
+        commandDataReader.Init(sNoFields);
+        err = commandDataReader.Next();
     }
     SuccessOrExit(err);
 
@@ -399,7 +414,7 @@ CHIP_ERROR CommandHandler::ProcessGroupCommandDataIB(CommandDataIB::Parser & aCo
         if (mpCallback->CommandExists(concretePath) != Protocols::InteractionModel::Status::Success)
         {
             ChipLogDetail(DataManagement, "No command " ChipLogFormatMEI " in Cluster " ChipLogFormatMEI " on Endpoint 0x%x",
-                          ChipLogValueMEI(mapping.endpoint_id), ChipLogValueMEI(clusterId), mapping.endpoint_id);
+                          ChipLogValueMEI(commandId), ChipLogValueMEI(clusterId), mapping.endpoint_id);
 
             continue;
         }
@@ -439,43 +454,32 @@ exit:
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR CommandHandler::AddStatusInternal(const ConcreteCommandPath & aCommandPath,
-                                             const Protocols::InteractionModel::Status aStatus,
-                                             const Optional<ClusterStatus> & aClusterStatus)
+CHIP_ERROR CommandHandler::AddStatusInternal(const ConcreteCommandPath & aCommandPath, const StatusIB & aStatus)
 {
-    StatusIB statusIB;
     ReturnErrorOnFailure(PrepareStatus(aCommandPath));
     CommandStatusIB::Builder & commandStatus = mInvokeResponseBuilder.GetInvokeResponses().GetInvokeResponse().GetStatus();
     StatusIB::Builder & statusIBBuilder      = commandStatus.CreateErrorStatus();
     ReturnErrorOnFailure(commandStatus.GetError());
-    //
-    // TODO: Most of the callers are incorrectly passing SecureChannel as the protocol ID, when in fact, the status code provided
-    // above is always an IM code. Instead of fixing all the callers (which is a fairly sizeable change), we'll embark on fixing
-    // this more completely when we fix #9530.
-    //
-    statusIB.mStatus        = aStatus;
-    statusIB.mClusterStatus = aClusterStatus;
-    statusIBBuilder.EncodeStatusIB(statusIB);
+    statusIBBuilder.EncodeStatusIB(aStatus);
     ReturnErrorOnFailure(statusIBBuilder.GetError());
     return FinishStatus();
 }
 
 CHIP_ERROR CommandHandler::AddStatus(const ConcreteCommandPath & aCommandPath, const Protocols::InteractionModel::Status aStatus)
 {
-    Optional<ClusterStatus> clusterStatus = Optional<ClusterStatus>::Missing();
-    return AddStatusInternal(aCommandPath, aStatus, clusterStatus);
+    return AddStatusInternal(aCommandPath, StatusIB(aStatus));
 }
 
 CHIP_ERROR CommandHandler::AddClusterSpecificSuccess(const ConcreteCommandPath & aCommandPath, ClusterStatus aClusterStatus)
 {
-    Optional<ClusterStatus> clusterStatus(aClusterStatus);
-    return AddStatusInternal(aCommandPath, Protocols::InteractionModel::Status::Success, clusterStatus);
+    using Protocols::InteractionModel::Status;
+    return AddStatusInternal(aCommandPath, StatusIB(Status::Success, aClusterStatus));
 }
 
 CHIP_ERROR CommandHandler::AddClusterSpecificFailure(const ConcreteCommandPath & aCommandPath, ClusterStatus aClusterStatus)
 {
-    Optional<ClusterStatus> clusterStatus(aClusterStatus);
-    return AddStatusInternal(aCommandPath, Protocols::InteractionModel::Status::Failure, clusterStatus);
+    using Protocols::InteractionModel::Status;
+    return AddStatusInternal(aCommandPath, StatusIB(Status::Failure, aClusterStatus));
 }
 
 CHIP_ERROR CommandHandler::PrepareCommand(const ConcreteCommandPath & aCommandPath, bool aStartDataStruct)
@@ -499,7 +503,7 @@ CHIP_ERROR CommandHandler::PrepareCommand(const ConcreteCommandPath & aCommandPa
     ReturnErrorOnFailure(path.Encode(aCommandPath));
     if (aStartDataStruct)
     {
-        ReturnErrorOnFailure(commandData.GetWriter()->StartContainer(TLV::ContextTag(to_underlying(CommandDataIB::Tag::kData)),
+        ReturnErrorOnFailure(commandData.GetWriter()->StartContainer(TLV::ContextTag(to_underlying(CommandDataIB::Tag::kFields)),
                                                                      TLV::kTLVType_Structure, mDataElementContainerType));
     }
     MoveToState(State::AddingCommand);

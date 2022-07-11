@@ -35,6 +35,7 @@
 #include <controller/InvokeInteraction.h>
 #include <lib/support/ErrorStr.h>
 #include <lib/support/TimeUtils.h>
+#include <lib/support/UnitTestContext.h>
 #include <lib/support/UnitTestRegistration.h>
 #include <lib/support/UnitTestUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
@@ -90,7 +91,7 @@ public:
     }
 
 private:
-    MonotonicallyIncreasingCounter mEventCounter;
+    MonotonicallyIncreasingCounter<EventNumber> mEventCounter;
 };
 
 nlTestSuite * gSuite = nullptr;
@@ -126,7 +127,7 @@ class TestReadCallback : public app::ClusterStateCache::Callback
 {
 public:
     TestReadCallback() : mClusterCacheAdapter(*this) {}
-    void OnDone() {}
+    void OnDone(app::ReadClient *) {}
 
     app::ClusterStateCache mClusterCacheAdapter;
 };
@@ -463,10 +464,8 @@ nlTestSuite sSuite =
 
 int TestEventCaching()
 {
-    TestContext gContext;
     gSuite = &sSuite;
-    nlTestRunner(&sSuite, &gContext);
-    return (nlTestRunnerStats(&sSuite));
+    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
 }
 
 CHIP_REGISTER_TEST_SUITE(TestEventCaching)

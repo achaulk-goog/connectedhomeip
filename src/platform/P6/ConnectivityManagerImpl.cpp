@@ -20,6 +20,13 @@
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
 #include <platform/ConnectivityManager.h>
+
+#include <platform/internal/GenericConnectivityManagerImpl_UDP.ipp>
+
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+#include <platform/internal/GenericConnectivityManagerImpl_TCP.ipp>
+#endif
+
 #if CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
 #include <platform/internal/GenericConnectivityManagerImpl_BLE.ipp>
 #endif
@@ -657,10 +664,10 @@ void ConnectivityManagerImpl::UpdateInternetConnectivityState(void)
 
         // Alert other components of the state change.
         ChipDeviceEvent event;
-        event.Type                            = DeviceEventType::kInternetConnectivityChange;
-        event.InternetConnectivityChange.IPv4 = GetConnectivityChange(hadIPv4Conn, haveIPv4Conn);
-        event.InternetConnectivityChange.IPv6 = GetConnectivityChange(hadIPv6Conn, haveIPv6Conn);
-        addr.ToString(event.InternetConnectivityChange.address);
+        event.Type                                 = DeviceEventType::kInternetConnectivityChange;
+        event.InternetConnectivityChange.IPv4      = GetConnectivityChange(hadIPv4Conn, haveIPv4Conn);
+        event.InternetConnectivityChange.IPv6      = GetConnectivityChange(hadIPv6Conn, haveIPv6Conn);
+        event.InternetConnectivityChange.ipAddress = addr;
         PlatformMgr().PostEventOrDie(&event);
 
         if (haveIPv4Conn != hadIPv4Conn)

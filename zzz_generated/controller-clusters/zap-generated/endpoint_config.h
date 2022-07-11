@@ -50,11 +50,11 @@
     }
 #define ZAP_EMPTY_DEFAULT()                                                                                                        \
     {                                                                                                                              \
-        (uint16_t) 0                                                                                                               \
+        (uint32_t) 0                                                                                                               \
     }
 #define ZAP_SIMPLE_DEFAULT(x)                                                                                                      \
     {                                                                                                                              \
-        (uint16_t) x                                                                                                               \
+        (uint32_t) x                                                                                                               \
     }
 
 // This is an array of EmberAfAttributeMinMaxValue structures.
@@ -766,8 +766,8 @@
       .generatedCommandList = nullptr ,\
     },\
   { \
-      /* Endpoint: 1, Cluster: Test Cluster (client) */ \
-      .clusterId = 0x0000050F,  \
+      /* Endpoint: 1, Cluster: Electrical Measurement (client) */ \
+      .clusterId = 0x00000B04,  \
       .attributes = ZAP_ATTRIBUTE_INDEX(0), \
       .attributeCount = 0, \
       .clusterSize = 0, \
@@ -777,8 +777,8 @@
       .generatedCommandList = nullptr ,\
     },\
   { \
-      /* Endpoint: 1, Cluster: Electrical Measurement (client) */ \
-      .clusterId = 0x00000B04,  \
+      /* Endpoint: 1, Cluster: Test Cluster (client) */ \
+      .clusterId = 0xFFF1FC05,  \
       .attributes = ZAP_ATTRIBUTE_INDEX(0), \
       .attributeCount = 0, \
       .clusterSize = 0, \

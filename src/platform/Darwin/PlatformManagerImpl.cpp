@@ -24,7 +24,6 @@
 
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
-#include <platform/Darwin/DeviceInfoProviderImpl.h>
 #include <platform/Darwin/DiagnosticDataProviderImpl.h>
 #include <platform/PlatformManager.h>
 
@@ -49,7 +48,6 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack()
 #endif // CHIP_DISABLE_PLATFORM_KVS
     SetConfigurationMgr(&ConfigurationManagerImpl::GetDefaultInstance());
     SetDiagnosticDataProvider(&DiagnosticDataProviderImpl::GetDefaultInstance());
-    SetDeviceInfoProvider(&DeviceInfoProviderImpl::GetDefaultInstance());
 
     mRunLoopSem = dispatch_semaphore_create(0);
 
@@ -71,9 +69,9 @@ exit:
 
 CHIP_ERROR PlatformManagerImpl::_StartEventLoopTask()
 {
-    if (mIsWorkQueueRunning == false)
+    if (mIsWorkQueueSuspended)
     {
-        mIsWorkQueueRunning = true;
+        mIsWorkQueueSuspended = false;
         dispatch_resume(mWorkQueue);
     }
 
@@ -82,9 +80,9 @@ CHIP_ERROR PlatformManagerImpl::_StartEventLoopTask()
 
 CHIP_ERROR PlatformManagerImpl::_StopEventLoopTask()
 {
-    if (mIsWorkQueueRunning == true)
+    if (!mIsWorkQueueSuspended && !mIsWorkQueueSuspensionPending)
     {
-        mIsWorkQueueRunning = false;
+        mIsWorkQueueSuspensionPending = true;
         if (dispatch_get_current_queue() != mWorkQueue)
         {
             // dispatch_sync is used in order to guarantee serialization of the caller with
@@ -92,6 +90,9 @@ CHIP_ERROR PlatformManagerImpl::_StopEventLoopTask()
             dispatch_sync(mWorkQueue, ^{
                 dispatch_suspend(mWorkQueue);
             });
+
+            mIsWorkQueueSuspended         = true;
+            mIsWorkQueueSuspensionPending = false;
         }
         else
         {
@@ -101,6 +102,8 @@ CHIP_ERROR PlatformManagerImpl::_StopEventLoopTask()
             // that no more tasks will run on the queue.
             dispatch_async(mWorkQueue, ^{
                 dispatch_suspend(mWorkQueue);
+                mIsWorkQueueSuspended         = true;
+                mIsWorkQueueSuspensionPending = false;
                 dispatch_semaphore_signal(mRunLoopSem);
             });
         }
@@ -120,10 +123,10 @@ void PlatformManagerImpl::_RunEventLoop()
     dispatch_semaphore_wait(mRunLoopSem, DISPATCH_TIME_FOREVER);
 }
 
-CHIP_ERROR PlatformManagerImpl::_Shutdown()
+void PlatformManagerImpl::_Shutdown()
 {
     // Call up to the base class _Shutdown() to perform the bulk of the shutdown.
-    return GenericPlatformManagerImpl<ImplClass>::_Shutdown();
+    GenericPlatformManagerImpl<ImplClass>::_Shutdown();
 }
 
 CHIP_ERROR PlatformManagerImpl::_PostEvent(const ChipDeviceEvent * event)
@@ -139,6 +142,15 @@ CHIP_ERROR PlatformManagerImpl::_PostEvent(const ChipDeviceEvent * event)
     });
     return CHIP_NO_ERROR;
 }
+
+#if CHIP_STACK_LOCK_TRACKING_ENABLED
+bool PlatformManagerImpl::_IsChipStackLockedByCurrentThread() const
+{
+    // If we have no work queue, or it's suspended, then we assume our caller
+    // knows what they are doing in terms of their own concurrency.
+    return !mWorkQueue || mIsWorkQueueSuspended || dispatch_get_current_queue() == mWorkQueue;
+};
+#endif
 
 } // namespace DeviceLayer
 } // namespace chip

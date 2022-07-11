@@ -22,6 +22,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 import chip.devicecontroller.GetConnectedDeviceCallbackJni.GetConnectedDeviceCallback;
 import chip.devicecontroller.model.ChipAttributePath;
+import chip.devicecontroller.model.ChipEventPath;
 import java.util.List;
 
 /** Controller to interact with the CHIP device. */
@@ -39,8 +40,14 @@ public class ChipDeviceController {
     return;
   }
 
+  /** Returns a new {@link ChipDeviceController} with default parameters. */
   public ChipDeviceController() {
-    deviceControllerPtr = newDeviceController();
+    this(ControllerParams.newBuilder().build());
+  }
+
+  /** Returns a new {@link ChipDeviceController} with the specified parameters. */
+  public ChipDeviceController(ControllerParams params) {
+    deviceControllerPtr = newDeviceController(params);
   }
 
   public void setCompletionListener(CompletionListener listener) {
@@ -292,6 +299,18 @@ public class ChipDeviceController {
     updateDevice(deviceControllerPtr, fabricId, deviceId);
   }
 
+  /**
+   * Get commmissionible Node. Commmissionible Node results are able to get using {@link
+   * ChipDeviceController.getDiscoveredDevice}.
+   */
+  public void discoverCommissionableNodes() {
+    discoverCommissionableNodes(deviceControllerPtr);
+  }
+
+  public DiscoveredDevice getDiscoveredDevice(int idx) {
+    return getDiscoveredDevice(deviceControllerPtr, idx);
+  }
+
   public boolean openPairingWindow(long devicePtr, int duration) {
     return openPairingWindow(deviceControllerPtr, devicePtr, duration);
   }
@@ -300,6 +319,22 @@ public class ChipDeviceController {
       long devicePtr, int duration, long iteration, int discriminator, long setupPinCode) {
     return openPairingWindowWithPIN(
         deviceControllerPtr, devicePtr, duration, iteration, discriminator, setupPinCode);
+  }
+
+  public boolean openPairingWindowCallback(
+      long devicePtr, int duration, OpenCommissioningCallback callback) {
+    return openPairingWindowCallback(deviceControllerPtr, devicePtr, duration, callback);
+  }
+
+  public boolean openPairingWindowWithPINCallback(
+      long devicePtr,
+      int duration,
+      long iteration,
+      int discriminator,
+      long setupPinCode,
+      OpenCommissioningCallback callback) {
+    return openPairingWindowWithPINCallback(
+        deviceControllerPtr, devicePtr, duration, iteration, discriminator, setupPinCode, callback);
   }
 
   /* Shutdown all cluster attribute subscriptions for a given device */
@@ -344,6 +379,58 @@ public class ChipDeviceController {
     readPath(deviceControllerPtr, jniCallback.getCallbackHandle(), devicePtr, attributePaths);
   }
 
+  /** Subscribe to the given event path. */
+  public void subscribeToEventPath(
+      SubscriptionEstablishedCallback subscriptionEstablishedCallback,
+      ResubscriptionAttemptCallback resubscriptionAttemptCallback,
+      ReportEventCallback reportCallback,
+      long devicePtr,
+      List<ChipEventPath> eventPaths,
+      int minInterval,
+      int maxInterval) {
+    subscribeToEventPath(
+        subscriptionEstablishedCallback,
+        resubscriptionAttemptCallback,
+        reportCallback,
+        devicePtr,
+        eventPaths,
+        minInterval,
+        maxInterval,
+        false,
+        true);
+  }
+
+  public void subscribeToEventPath(
+      SubscriptionEstablishedCallback subscriptionEstablishedCallback,
+      ResubscriptionAttemptCallback resubscriptionAttemptCallback,
+      ReportEventCallback reportCallback,
+      long devicePtr,
+      List<ChipEventPath> eventPaths,
+      int minInterval,
+      int maxInterval,
+      boolean keepSubscriptions,
+      boolean isFabricFiltered) {
+    ReportEventCallbackJni jniCallback =
+        new ReportEventCallbackJni(
+            subscriptionEstablishedCallback, reportCallback, resubscriptionAttemptCallback);
+    subscribeToEventPath(
+        deviceControllerPtr,
+        jniCallback.getCallbackHandle(),
+        devicePtr,
+        eventPaths,
+        minInterval,
+        maxInterval,
+        keepSubscriptions,
+        isFabricFiltered);
+  }
+
+  /** Read the given event path. */
+  public void readEventPath(
+      ReportEventCallback callback, long devicePtr, List<ChipEventPath> eventPaths) {
+    ReportEventCallbackJni jniCallback = new ReportEventCallbackJni(null, callback, null);
+    readEventPath(deviceControllerPtr, jniCallback.getCallbackHandle(), devicePtr, eventPaths);
+  }
+
   /**
    * Converts a given X.509v3 certificate into a Matter certificate.
    *
@@ -386,7 +473,23 @@ public class ChipDeviceController {
       long devicePtr,
       List<ChipAttributePath> attributePaths);
 
-  private native long newDeviceController();
+  private native void subscribeToEventPath(
+      long deviceControllerPtr,
+      long callbackHandle,
+      long devicePtr,
+      List<ChipEventPath> eventPaths,
+      int minInterval,
+      int maxInterval,
+      boolean keepSubscriptions,
+      boolean isFabricFiltered);
+
+  public native void readEventPath(
+      long deviceControllerPtr,
+      long callbackHandle,
+      long devicePtr,
+      List<ChipEventPath> eventPaths);
+
+  private native long newDeviceController(ControllerParams params);
 
   private native void pairDevice(
       long deviceControllerPtr,
@@ -436,6 +539,10 @@ public class ChipDeviceController {
 
   private native void updateDevice(long deviceControllerPtr, long fabricId, long deviceId);
 
+  private native void discoverCommissionableNodes(long deviceControllerPtr);
+
+  private native DiscoveredDevice getDiscoveredDevice(long deviceControllerPtr, int idx);
+
   private native boolean openPairingWindow(long deviceControllerPtr, long devicePtr, int duration);
 
   private native boolean openPairingWindowWithPIN(
@@ -445,6 +552,18 @@ public class ChipDeviceController {
       long iteration,
       int discriminator,
       long setupPinCode);
+
+  private native boolean openPairingWindowCallback(
+      long deviceControllerPtr, long devicePtr, int duration, OpenCommissioningCallback callback);
+
+  private native boolean openPairingWindowWithPINCallback(
+      long deviceControllerPtr,
+      long devicePtr,
+      int duration,
+      long iteration,
+      int discriminator,
+      long setupPinCode,
+      OpenCommissioningCallback callback);
 
   private native byte[] getAttestationChallenge(long deviceControllerPtr, long devicePtr);
 

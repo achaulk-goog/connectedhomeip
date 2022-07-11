@@ -36,6 +36,7 @@
 #include <lib/support/CHIPCounter.h>
 #include <lib/support/EnforceFormat.h>
 #include <lib/support/ErrorStr.h>
+#include <lib/support/UnitTestContext.h>
 #include <lib/support/UnitTestRegistration.h>
 #include <lib/support/logging/Constants.h>
 #include <messaging/ExchangeContext.h>
@@ -97,7 +98,7 @@ public:
     }
 
 private:
-    chip::MonotonicallyIncreasingCounter mEventCounter;
+    chip::MonotonicallyIncreasingCounter<chip::EventNumber> mEventCounter;
 };
 
 void ENFORCE_FORMAT(1, 2) SimpleDumpWriter(const char * aFormat, ...)
@@ -148,13 +149,16 @@ static void CheckLogReadOut(nlTestSuite * apSuite, chip::app::EventManagement & 
     chip::TLV::TLVReader reader;
     chip::TLV::TLVWriter writer;
     size_t eventCount = 0;
-    uint8_t backingStore[1024];
+
+    chip::Platform::ScopedMemoryBuffer<uint8_t> backingStore;
+    VerifyOrDie(backingStore.Alloc(1024));
+
     size_t totalNumElements;
-    writer.Init(backingStore, 1024);
+    writer.Init(backingStore.Get(), 1024);
     err = alogMgmt.FetchEventsSince(writer, clusterInfo, startingEventNumber, eventCount, chip::Access::SubjectDescriptor{});
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR || err == CHIP_END_OF_TLV);
 
-    reader.Init(backingStore, writer.GetLengthWritten());
+    reader.Init(backingStore.Get(), writer.GetLengthWritten());
 
     err = chip::TLV::Utilities::Count(reader, totalNumElements, false);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
@@ -162,7 +166,7 @@ static void CheckLogReadOut(nlTestSuite * apSuite, chip::app::EventManagement & 
     printf("totalNumElements vs expectedNumEvents vs eventCount : %u vs %u vs %u \n", static_cast<unsigned int>(totalNumElements),
            static_cast<unsigned int>(expectedNumEvents), static_cast<unsigned int>(eventCount));
     NL_TEST_ASSERT(apSuite, totalNumElements == expectedNumEvents && totalNumElements == eventCount);
-    reader.Init(backingStore, writer.GetLengthWritten());
+    reader.Init(backingStore.Get(), writer.GetLengthWritten());
     chip::TLV::Debug::Dump(reader, SimpleDumpWriter);
 }
 
@@ -233,20 +237,37 @@ static void CheckLogEventWithEvictToNextBuffer(nlTestSuite * apSuite, void * apC
     NL_TEST_ASSERT(apSuite, (eid4 + 1) == eid5);
     NL_TEST_ASSERT(apSuite, (eid5 + 1) == eid6);
 
-    chip::app::ObjectList<chip::app::EventPathParams> testEventPathParams1;
-    testEventPathParams1.mValue.mEndpointId = kTestEndpointId1;
-    testEventPathParams1.mValue.mClusterId  = kLivenessClusterId;
-    chip::app::ObjectList<chip::app::EventPathParams> testEventPathParams2;
-    testEventPathParams2.mValue.mEndpointId = kTestEndpointId2;
-    testEventPathParams2.mValue.mClusterId  = kLivenessClusterId;
-    testEventPathParams2.mValue.mEventId    = kLivenessChangeEvent;
+    chip::app::ObjectList<chip::app::EventPathParams> paths[2];
 
-    CheckLogReadOut(apSuite, logMgmt, 0, 3, &testEventPathParams1);
-    CheckLogReadOut(apSuite, logMgmt, 1, 2, &testEventPathParams1);
-    CheckLogReadOut(apSuite, logMgmt, 2, 1, &testEventPathParams1);
-    CheckLogReadOut(apSuite, logMgmt, 3, 3, &testEventPathParams2);
-    CheckLogReadOut(apSuite, logMgmt, 4, 2, &testEventPathParams2);
-    CheckLogReadOut(apSuite, logMgmt, 5, 1, &testEventPathParams2);
+    paths[0].mValue.mEndpointId = kTestEndpointId1;
+    paths[0].mValue.mClusterId  = kLivenessClusterId;
+
+    paths[1].mValue.mEndpointId = kTestEndpointId2;
+    paths[1].mValue.mClusterId  = kLivenessClusterId;
+    paths[1].mValue.mEventId    = kLivenessChangeEvent;
+
+    // interested paths are path list, expect to retrieve all events for each particular interested path
+    CheckLogReadOut(apSuite, logMgmt, 0, 3, &paths[0]);
+    CheckLogReadOut(apSuite, logMgmt, 1, 2, &paths[0]);
+    CheckLogReadOut(apSuite, logMgmt, 2, 1, &paths[0]);
+    CheckLogReadOut(apSuite, logMgmt, 3, 3, &paths[1]);
+    CheckLogReadOut(apSuite, logMgmt, 4, 2, &paths[1]);
+    CheckLogReadOut(apSuite, logMgmt, 5, 1, &paths[1]);
+
+    paths[0].mpNext = &paths[1];
+    // interested paths are path list, expect to retrieve all events for those interested paths
+    CheckLogReadOut(apSuite, logMgmt, 0, 6, paths);
+
+    chip::app::ObjectList<chip::app::EventPathParams> pathsWithWildcard[2];
+    paths[0].mValue.mEndpointId = kTestEndpointId1;
+    paths[0].mValue.mClusterId  = kLivenessClusterId;
+
+    // second path is wildcard path at default, expect to retrieve all events
+    CheckLogReadOut(apSuite, logMgmt, 0, 6, &pathsWithWildcard[1]);
+
+    paths[0].mpNext = &paths[1];
+    // first path is not wildcard, second path is wildcard path at default, expect to retrieve all events
+    CheckLogReadOut(apSuite, logMgmt, 0, 6, pathsWithWildcard);
 }
 
 static void CheckLogEventWithDiscardLowEvent(nlTestSuite * apSuite, void * apContext)
@@ -311,9 +332,7 @@ nlTestSuite sSuite =
 
 int TestEventLogging()
 {
-    TestContext gContext;
-    nlTestRunner(&sSuite, &gContext);
-    return (nlTestRunnerStats(&sSuite));
+    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
 }
 
 CHIP_REGISTER_TEST_SUITE(TestEventLogging)

@@ -24,6 +24,7 @@
 #include <app/clusters/ota-requestor/ota-requestor-server.h>
 #include <lib/core/CHIPEncoding.h>
 #include <platform/CHIPDeviceLayer.h>
+#include <platform/DeviceInstanceInfoProvider.h>
 #include <platform/OTAImageProcessor.h>
 #include <protocols/bdx/BdxUri.h>
 #include <zap-generated/CHIPClusters.h>
@@ -362,7 +363,7 @@ void DefaultOTARequestor::ConnectToProvider(OnConnectedAction onConnectedAction)
         return;
     }
 
-    FabricInfo * fabricInfo = mServer->GetFabricTable().FindFabricWithIndex(mProviderLocation.Value().fabricIndex);
+    const FabricInfo * fabricInfo = mServer->GetFabricTable().FindFabricWithIndex(mProviderLocation.Value().fabricIndex);
 
     if (fabricInfo == nullptr)
     {
@@ -376,15 +377,9 @@ void DefaultOTARequestor::ConnectToProvider(OnConnectedAction onConnectedAction)
 
     ChipLogDetail(SoftwareUpdate, "Establishing session to provider node ID 0x" ChipLogFormatX64 " on fabric index %d",
                   ChipLogValueX64(mProviderLocation.Value().providerNodeID), mProviderLocation.Value().fabricIndex);
-    CHIP_ERROR err =
-        mCASESessionManager->FindOrEstablishSession(fabricInfo->GetPeerIdForNode(mProviderLocation.Value().providerNodeID),
-                                                    &mOnConnectedCallback, &mOnConnectionFailureCallback);
-    if (err != CHIP_NO_ERROR)
-    {
-        ChipLogError(SoftwareUpdate, "Cannot establish connection to provider: %" CHIP_ERROR_FORMAT, err.Format());
-        RecordErrorUpdateState(CHIP_ERROR_INCORRECT_STATE);
-        return;
-    }
+
+    mCASESessionManager->FindOrEstablishSession(fabricInfo->GetPeerIdForNode(mProviderLocation.Value().providerNodeID),
+                                                &mOnConnectedCallback, &mOnConnectionFailureCallback);
 }
 
 void DefaultOTARequestor::DisconnectFromProvider()
@@ -398,7 +393,7 @@ void DefaultOTARequestor::DisconnectFromProvider()
         return;
     }
 
-    FabricInfo * fabricInfo = mServer->GetFabricTable().FindFabricWithIndex(mProviderLocation.Value().fabricIndex);
+    const FabricInfo * fabricInfo = mServer->GetFabricTable().FindFabricWithIndex(mProviderLocation.Value().fabricIndex);
     if (fabricInfo == nullptr)
     {
         ChipLogError(SoftwareUpdate, "Cannot find fabric");
@@ -406,7 +401,9 @@ void DefaultOTARequestor::DisconnectFromProvider()
         return;
     }
 
-    mCASESessionManager->ReleaseSession(fabricInfo->GetPeerIdForNode(mProviderLocation.Value().providerNodeID));
+    PeerId peerID = fabricInfo->GetPeerIdForNode(mProviderLocation.Value().providerNodeID);
+    mCASESessionManager->FindExistingSession(peerID)->Disconnect();
+    mCASESessionManager->ReleaseSession(peerID);
 }
 
 // Requestor is directed to cancel image update in progress. All the Requestor state is
@@ -525,14 +522,34 @@ void DefaultOTARequestor::TriggerImmediateQueryInternal()
     ConnectToProvider(kQueryImage);
 }
 
-OTARequestorInterface::OTATriggerResult DefaultOTARequestor::TriggerImmediateQuery()
+CHIP_ERROR DefaultOTARequestor::TriggerImmediateQuery(FabricIndex fabricIndex)
 {
     ProviderLocationType providerLocation;
-    bool listExhausted = false;
-    if (mOtaRequestorDriver->GetNextProviderLocation(providerLocation, listExhausted) != true)
+    bool providerFound = false;
+
+    if (fabricIndex == kUndefinedFabricIndex)
     {
-        ChipLogError(SoftwareUpdate, "No OTA Providers available");
-        return kNoProviderKnown;
+        bool listExhausted = false;
+        providerFound      = mOtaRequestorDriver->GetNextProviderLocation(providerLocation, listExhausted);
+    }
+    else
+    {
+        for (auto providerIter = mDefaultOtaProviderList.Begin(); providerIter.Next();)
+        {
+            providerLocation = providerIter.GetValue();
+
+            if (providerLocation.GetFabricIndex() == fabricIndex)
+            {
+                providerFound = true;
+                break;
+            }
+        }
+    }
+
+    if (!providerFound)
+    {
+        ChipLogError(SoftwareUpdate, "No OTA Providers available for immediate query");
+        return CHIP_ERROR_NOT_FOUND;
     }
 
     SetCurrentProviderLocation(providerLocation);
@@ -540,7 +557,10 @@ OTARequestorInterface::OTATriggerResult DefaultOTARequestor::TriggerImmediateQue
     // Go through the driver as it has additional logic to execute
     mOtaRequestorDriver->SendQueryImage();
 
-    return kTriggerSuccessful;
+    ChipLogProgress(SoftwareUpdate, "Triggered immediate OTA query for fabric: 0x%x",
+                    static_cast<unsigned>(providerLocation.GetFabricIndex()));
+
+    return CHIP_NO_ERROR;
 }
 
 void DefaultOTARequestor::DownloadUpdate()
@@ -568,7 +588,7 @@ void DefaultOTARequestor::NotifyUpdateApplied()
 {
     // Log the VersionApplied event
     uint16_t productId;
-    if (DeviceLayer::ConfigurationMgr().GetProductId(productId) != CHIP_NO_ERROR)
+    if (DeviceLayer::GetDeviceInstanceInfoProvider()->GetProductId(productId) != CHIP_NO_ERROR)
     {
         ChipLogError(SoftwareUpdate, "Cannot get Product ID");
         RecordErrorUpdateState(CHIP_ERROR_INCORRECT_STATE);
@@ -624,7 +644,6 @@ void DefaultOTARequestor::OnDownloadStateChanged(OTADownloader::State state, OTA
         {
             RecordErrorUpdateState(CHIP_ERROR_CONNECTION_ABORTED, reason);
         }
-
         break;
     default:
         break;
@@ -672,19 +691,19 @@ void DefaultOTARequestor::RecordNewUpdateState(OTAUpdateStateEnum newState, OTAC
     }
     OtaRequestorServerOnStateTransition(mCurrentUpdateState, newState, reason, targetSoftwareVersion);
 
-    if ((newState == OTAUpdateStateEnum::kIdle) && (mCurrentUpdateState != OTAUpdateStateEnum::kIdle))
+    OTAUpdateStateEnum prevState = mCurrentUpdateState;
+    // Update the new state before handling the state transition
+    mCurrentUpdateState = newState;
+
+    if ((newState == OTAUpdateStateEnum::kIdle) && (prevState != OTAUpdateStateEnum::kIdle))
     {
         IdleStateReason idleStateReason = MapErrorToIdleStateReason(error);
-
-        // Inform the driver that the core logic has entered the Idle state
         mOtaRequestorDriver->HandleIdleStateEnter(idleStateReason);
     }
-    else if ((mCurrentUpdateState == OTAUpdateStateEnum::kIdle) && (newState != OTAUpdateStateEnum::kIdle))
+    else if ((prevState == OTAUpdateStateEnum::kIdle) && (newState != OTAUpdateStateEnum::kIdle))
     {
         mOtaRequestorDriver->HandleIdleStateExit();
     }
-
-    mCurrentUpdateState = newState;
 }
 
 void DefaultOTARequestor::RecordErrorUpdateState(CHIP_ERROR error, OTAChangeReasonEnum reason)
@@ -707,7 +726,7 @@ CHIP_ERROR DefaultOTARequestor::GenerateUpdateToken()
         VerifyOrReturnError(mServer != nullptr, CHIP_ERROR_INCORRECT_STATE);
         VerifyOrReturnError(mProviderLocation.HasValue(), CHIP_ERROR_INCORRECT_STATE);
 
-        FabricInfo * fabricInfo = mServer->GetFabricTable().FindFabricWithIndex(mProviderLocation.Value().fabricIndex);
+        const FabricInfo * fabricInfo = mServer->GetFabricTable().FindFabricWithIndex(mProviderLocation.Value().fabricIndex);
         VerifyOrReturnError(fabricInfo != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
         static_assert(sizeof(NodeId) == sizeof(uint64_t), "Unexpected NodeId size");
@@ -726,10 +745,10 @@ CHIP_ERROR DefaultOTARequestor::SendQueryImageRequest(OperationalDeviceProxy & d
     QueryImage::Type args;
 
     uint16_t vendorId;
-    ReturnErrorOnFailure(DeviceLayer::ConfigurationMgr().GetVendorId(vendorId));
+    ReturnErrorOnFailure(DeviceLayer::GetDeviceInstanceInfoProvider()->GetVendorId(vendorId));
     args.vendorId = static_cast<VendorId>(vendorId);
 
-    ReturnErrorOnFailure(DeviceLayer::ConfigurationMgr().GetProductId(args.productId));
+    ReturnErrorOnFailure(DeviceLayer::GetDeviceInstanceInfoProvider()->GetProductId(args.productId));
 
     ReturnErrorOnFailure(DeviceLayer::ConfigurationMgr().GetSoftwareVersion(args.softwareVersion));
 
@@ -737,7 +756,7 @@ CHIP_ERROR DefaultOTARequestor::SendQueryImageRequest(OperationalDeviceProxy & d
     args.requestorCanConsent.SetValue(!Basic::IsLocalConfigDisabled() && mOtaRequestorDriver->CanConsent());
 
     uint16_t hardwareVersion;
-    if (DeviceLayer::ConfigurationMgr().GetHardwareVersion(hardwareVersion) == CHIP_NO_ERROR)
+    if (DeviceLayer::GetDeviceInstanceInfoProvider()->GetHardwareVersion(hardwareVersion) == CHIP_NO_ERROR)
     {
         args.hardwareVersion.SetValue(hardwareVersion);
     }

@@ -17,12 +17,14 @@
 
 #include "MessagingContext.h"
 
-#include <credentials/tests/CHIPCert_test_vectors.h>
+#include <credentials/tests/CHIPCert_unit_test_vectors.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/ErrorStr.h>
 
 namespace chip {
 namespace Test {
+
+using namespace TestCerts;
 
 CHIP_ERROR MessagingContext::Init(TransportMgrBase * transport, IOContext * ioContext)
 {
@@ -33,7 +35,17 @@ CHIP_ERROR MessagingContext::Init(TransportMgrBase * transport, IOContext * ioCo
     mTransport = transport;
 
     ReturnErrorOnFailure(PlatformMemoryUser::Init());
-    ReturnErrorOnFailure(mFabricTable.Init(&mStorage));
+
+    ReturnErrorOnFailure(mOpKeyStore.Init(&mStorage));
+    ReturnErrorOnFailure(mOpCertStore.Init(&mStorage));
+
+    chip::FabricTable::InitParams initParams;
+    initParams.storage             = &mStorage;
+    initParams.operationalKeystore = &mOpKeyStore;
+    initParams.opCertStore         = &mOpCertStore;
+
+    ReturnErrorOnFailure(mFabricTable.Init(initParams));
+
     ReturnErrorOnFailure(mSessionManager.Init(&GetSystemLayer(), transport, &mMessageCounterManager, &mStorage, &mFabricTable));
 
     ReturnErrorOnFailure(mExchangeManager.Init(&mSessionManager));
@@ -41,42 +53,36 @@ CHIP_ERROR MessagingContext::Init(TransportMgrBase * transport, IOContext * ioCo
 
     if (mInitializeNodes)
     {
-        FabricInfo aliceFabric;
-        FabricInfo bobFabric;
+        ReturnErrorOnFailure(mFabricTable.AddNewFabricForTestIgnoringCollisions(GetRootACertAsset().mCert, GetIAA1CertAsset().mCert,
+                                                                                GetNodeA1CertAsset().mCert,
+                                                                                GetNodeA1CertAsset().mKey, &mAliceFabricIndex));
 
-        aliceFabric.TestOnlyBuildFabric(
-            ByteSpan(TestCerts::sTestCert_Root01_Chip, TestCerts::sTestCert_Root01_Chip_Len),
-            ByteSpan(TestCerts::sTestCert_ICA01_Chip, TestCerts::sTestCert_ICA01_Chip_Len),
-            ByteSpan(TestCerts::sTestCert_Node01_01_Chip, TestCerts::sTestCert_Node01_01_Chip_Len),
-            ByteSpan(TestCerts::sTestCert_Node01_01_PublicKey, TestCerts::sTestCert_Node01_01_PublicKey_Len),
-            ByteSpan(TestCerts::sTestCert_Node01_01_PrivateKey, TestCerts::sTestCert_Node01_01_PrivateKey_Len));
-        ReturnErrorOnFailure(mFabricTable.AddNewFabric(aliceFabric, &mAliceFabricIndex));
-
-        bobFabric.TestOnlyBuildFabric(
-            ByteSpan(TestCerts::sTestCert_Root02_Chip, TestCerts::sTestCert_Root02_Chip_Len),
-            ByteSpan(TestCerts::sTestCert_ICA02_Chip, TestCerts::sTestCert_ICA02_Chip_Len),
-            ByteSpan(TestCerts::sTestCert_Node02_01_Chip, TestCerts::sTestCert_Node02_01_Chip_Len),
-            ByteSpan(TestCerts::sTestCert_Node02_01_PublicKey, TestCerts::sTestCert_Node02_01_PublicKey_Len),
-            ByteSpan(TestCerts::sTestCert_Node02_01_PrivateKey, TestCerts::sTestCert_Node02_01_PrivateKey_Len));
-        ReturnErrorOnFailure(mFabricTable.AddNewFabric(bobFabric, &mBobFabricIndex));
+        ReturnErrorOnFailure(mFabricTable.AddNewFabricForTestIgnoringCollisions(GetRootACertAsset().mCert, GetIAA1CertAsset().mCert,
+                                                                                GetNodeA2CertAsset().mCert,
+                                                                                GetNodeA2CertAsset().mKey, &mBobFabricIndex));
 
         ReturnErrorOnFailure(CreateSessionBobToAlice());
         ReturnErrorOnFailure(CreateSessionAliceToBob());
         ReturnErrorOnFailure(CreateSessionBobToFriends());
+
+        ReturnErrorOnFailure(CreatePASESessionCharlieToDavid());
+        ReturnErrorOnFailure(CreatePASESessionDavidToCharlie());
     }
 
     return CHIP_NO_ERROR;
 }
 
 // Shutdown all layers, finalize operations
-CHIP_ERROR MessagingContext::Shutdown()
+void MessagingContext::Shutdown()
 {
-    VerifyOrReturnError(mInitialized == true, CHIP_ERROR_INTERNAL);
+    VerifyOrDie(mInitialized);
     mInitialized = false;
 
     mExchangeManager.Shutdown();
     mSessionManager.Shutdown();
-    return CHIP_NO_ERROR;
+    mFabricTable.Shutdown();
+    mOpCertStore.Finish();
+    mOpKeyStore.Finish();
 }
 
 CHIP_ERROR MessagingContext::InitFromExisting(const MessagingContext & existing)
@@ -84,13 +90,12 @@ CHIP_ERROR MessagingContext::InitFromExisting(const MessagingContext & existing)
     return Init(existing.mTransport, existing.mIOContext);
 }
 
-CHIP_ERROR MessagingContext::ShutdownAndRestoreExisting(MessagingContext & existing)
+void MessagingContext::ShutdownAndRestoreExisting(MessagingContext & existing)
 {
-    CHIP_ERROR err = Shutdown();
+    Shutdown();
     // Point the transport back to the original session manager, since we had
     // pointed it to ours.
     existing.mTransport->SetSessionManager(&existing.GetSecureSessionManager());
-    return err;
 }
 
 CHIP_ERROR MessagingContext::CreateSessionBobToAlice()
@@ -105,6 +110,20 @@ CHIP_ERROR MessagingContext::CreateSessionAliceToBob()
                                                         mAliceFabricIndex, mBobAddress, CryptoContext::SessionRole::kResponder);
 }
 
+CHIP_ERROR MessagingContext::CreatePASESessionCharlieToDavid()
+{
+    return mSessionManager.InjectPaseSessionWithTestKey(mSessionCharlieToDavid, kCharlieKeyId, 0xdeadbeef, kDavidKeyId,
+                                                        kUndefinedFabricIndex, mDavidAddress,
+                                                        CryptoContext::SessionRole::kInitiator);
+}
+
+CHIP_ERROR MessagingContext::CreatePASESessionDavidToCharlie()
+{
+    return mSessionManager.InjectPaseSessionWithTestKey(mSessionDavidToCharlie, kDavidKeyId, 0xcafe, kCharlieKeyId,
+                                                        kUndefinedFabricIndex, mCharlieAddress,
+                                                        CryptoContext::SessionRole::kResponder);
+}
+
 CHIP_ERROR MessagingContext::CreateSessionBobToFriends()
 {
     mSessionBobToFriends.Emplace(GetFriendsGroupId(), mBobFabricIndex);
@@ -113,12 +132,26 @@ CHIP_ERROR MessagingContext::CreateSessionBobToFriends()
 
 SessionHandle MessagingContext::GetSessionBobToAlice()
 {
-    return mSessionBobToAlice.Get();
+    auto sessionHandle = mSessionBobToAlice.Get();
+    return std::move(sessionHandle.Value());
 }
 
 SessionHandle MessagingContext::GetSessionAliceToBob()
 {
-    return mSessionAliceToBob.Get();
+    auto sessionHandle = mSessionAliceToBob.Get();
+    return std::move(sessionHandle.Value());
+}
+
+SessionHandle MessagingContext::GetSessionCharlieToDavid()
+{
+    auto sessionHandle = mSessionCharlieToDavid.Get();
+    return std::move(sessionHandle.Value());
+}
+
+SessionHandle MessagingContext::GetSessionDavidToCharlie()
+{
+    auto sessionHandle = mSessionDavidToCharlie.Get();
+    return std::move(sessionHandle.Value());
 }
 
 SessionHandle MessagingContext::GetSessionBobToFriends()
@@ -128,12 +161,18 @@ SessionHandle MessagingContext::GetSessionBobToFriends()
 
 void MessagingContext::ExpireSessionBobToAlice()
 {
-    mSessionManager.ExpirePairing(mSessionBobToAlice.Get());
+    if (mSessionBobToAlice)
+    {
+        mSessionBobToAlice.Get().Value()->AsSecureSession()->MarkForEviction();
+    }
 }
 
 void MessagingContext::ExpireSessionAliceToBob()
 {
-    mSessionManager.ExpirePairing(mSessionAliceToBob.Get());
+    if (mSessionAliceToBob)
+    {
+        mSessionAliceToBob.Get().Value()->AsSecureSession()->MarkForEviction();
+    }
 }
 
 void MessagingContext::ExpireSessionBobToFriends()
@@ -143,14 +182,16 @@ void MessagingContext::ExpireSessionBobToFriends()
 
 Messaging::ExchangeContext * MessagingContext::NewUnauthenticatedExchangeToAlice(Messaging::ExchangeDelegate * delegate)
 {
-    return mExchangeManager.NewContext(mSessionManager.CreateUnauthenticatedSession(mAliceAddress, GetLocalMRPConfig()).Value(),
-                                       delegate);
+    return mExchangeManager.NewContext(
+        mSessionManager.CreateUnauthenticatedSession(mAliceAddress, GetLocalMRPConfig().ValueOr(GetDefaultMRPConfig())).Value(),
+        delegate);
 }
 
 Messaging::ExchangeContext * MessagingContext::NewUnauthenticatedExchangeToBob(Messaging::ExchangeDelegate * delegate)
 {
-    return mExchangeManager.NewContext(mSessionManager.CreateUnauthenticatedSession(mBobAddress, GetLocalMRPConfig()).Value(),
-                                       delegate);
+    return mExchangeManager.NewContext(
+        mSessionManager.CreateUnauthenticatedSession(mBobAddress, GetLocalMRPConfig().ValueOr(GetDefaultMRPConfig())).Value(),
+        delegate);
 }
 
 Messaging::ExchangeContext * MessagingContext::NewExchangeToAlice(Messaging::ExchangeDelegate * delegate)

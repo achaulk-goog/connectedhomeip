@@ -28,6 +28,27 @@ tests:
               - name: "nodeId"
                 value: nodeId
 
+    - label: "Reads Minlevel attribute from DUT"
+      command: "readAttribute"
+      attribute: "min level"
+      response:
+          saveAs: MinlevelValue
+          constraints:
+              type: uint8
+
+    - label: "sends a Move to level command"
+      command: "MoveToLevel"
+      arguments:
+          values:
+              - name: "level"
+                value: 1
+              - name: "transitionTime"
+                value: 0
+              - name: "optionMask"
+                value: 1
+              - name: "optionOverride"
+                value: 1
+
     - label: "reads max level attribute from DUT"
       command: "readAttribute"
       attribute: "max level"
@@ -49,41 +70,37 @@ tests:
               - name: "optionOverride"
                 value: 1
 
-    - label: "user prompt message"
+    - label:
+          "Physically verify that the DUT moves at a rate of 32 units per second
+          or as close as possible to this rate and completes moving to its
+          maximum level"
       cluster: "LogCommands"
       command: "UserPrompt"
+      PICS: PICS_USER_PROMPT
       arguments:
           values:
               - name: "message"
-                value:
-                    "Physically verify that the DUT moves at a rate of 32 units
-                    per second or as close as possible to this rate and
-                    completes moving to its maximum level"
+                value: "Please enter 'y' for success"
+              - name: "expectedValue"
+                value: "y"
 
-    - label: "Wait 3000ms"
+    - label: "Wait 9000ms"
       cluster: "DelayCommands"
       command: "WaitForMs"
       arguments:
           values:
               - name: "ms"
-                value: 3000
+                value: 9000
 
-    - label: "reads CurrentLevel attribute from DUT"
+    - label: "Reads CurrentLevel attribute from DUT"
+      PICS: LVL.S.A0003
       command: "readAttribute"
       attribute: "current level"
       response:
           value: MaxlevelValue
 
-    - label: "reads min level attribute from DUT"
-      command: "readAttribute"
-      attribute: "min level"
-      response:
-          saveAs: MinlevelValue
-          constraints:
-              type: uint8
-
-    - label: "sends a Move down command"
-      command: "Move"
+    - label: "sends a MoveWithOnOff command"
+      command: "MoveWithOnOff"
       arguments:
           values:
               - name: "moveMode"
@@ -95,16 +112,19 @@ tests:
               - name: "optionOverride"
                 value: 1
 
-    - label: "user prompt message"
+    - label:
+          "Physically verify that the DUT moves at a rate of 64 units per second
+          or as close as possible to this rate and complete moving to its
+          minimum level"
       cluster: "LogCommands"
       command: "UserPrompt"
+      PICS: PICS_USER_PROMPT
       arguments:
           values:
               - name: "message"
-                value:
-                    "Physically verify that the DUT moves at a rate of 64 units
-                    per second or as close as possible to this rate and complete
-                    moving to its minimum level"
+                value: "Please enter 'y' for success"
+              - name: "expectedValue"
+                value: "y"
 
     - label: "Wait 5000ms"
       cluster: "DelayCommands"
@@ -116,10 +136,11 @@ tests:
 
     # For lighting Device type current level minimal value is 1
     - label: "reads CurrentLevel attribute from DUT"
+      PICS: LVL.S.A0002
       command: "readAttribute"
       attribute: "current level"
       response:
-          value: 1
+          value: MinlevelValue
           constraints:
               minValue: 0
               maxValue: 1
@@ -153,23 +174,18 @@ tests:
               - name: "ms"
                 value: 100
 
-    - label: "reads CurrentLevel attribute from DUT"
-      command: "readAttribute"
-      attribute: "current level"
-      response:
-          constraints:
-              notValue: 255
-
-    - label: "user prompt message"
+    - label:
+          "Physically verify that the device moves at the rate recorded in step
+          3a and completes moving to its maximum level"
       cluster: "LogCommands"
       command: "UserPrompt"
+      PICS: PICS_USER_PROMPT
       arguments:
           values:
               - name: "message"
-                value:
-                    "Physically verify that the device moves at the rate
-                    recorded in step 3a and completes moving to its maximum
-                    level."
+                value: "Please enter 'y' for success"
+              - name: "expectedValue"
+                value: "y"
 
     - label: "Reset level to 254"
       command: "MoveToLevel"

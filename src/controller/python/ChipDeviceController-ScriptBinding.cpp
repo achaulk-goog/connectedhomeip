@@ -56,6 +56,7 @@
 #include <controller/CommissioningWindowOpener.h>
 #include <controller/ExampleOperationalCredentialsIssuer.h>
 #include <credentials/GroupDataProviderImpl.h>
+#include <credentials/PersistentStorageOpCertStore.h>
 #include <credentials/attestation_verifier/DefaultDeviceAttestationVerifier.h>
 #include <credentials/attestation_verifier/DeviceAttestationVerifier.h>
 #include <inet/IPAddress.h>
@@ -96,6 +97,7 @@ chip::Controller::CommissioningParameters sCommissioningParameters;
 chip::Controller::ScriptDevicePairingDelegate sPairingDelegate;
 chip::Controller::Python::StorageAdapter * sStorageAdapter = nullptr;
 chip::Credentials::GroupDataProviderImpl sGroupDataProvider;
+chip::Credentials::PersistentStorageOpCertStore sPersistentStorageOpCertStore;
 
 // NOTE: Remote device ID is in sync with the echo server device id
 // At some point, we may want to add an option to connect to a device without
@@ -115,12 +117,15 @@ ChipError::StorageType pychip_DeviceController_GetAddressAndPort(chip::Controlle
 ChipError::StorageType pychip_DeviceController_GetCompressedFabricId(chip::Controller::DeviceCommissioner * devCtrl,
                                                                      uint64_t * outFabricId);
 ChipError::StorageType pychip_DeviceController_GetFabricId(chip::Controller::DeviceCommissioner * devCtrl, uint64_t * outFabricId);
+ChipError::StorageType pychip_DeviceController_GetNodeId(chip::Controller::DeviceCommissioner * devCtrl, uint64_t * outNodeId);
 
 // Rendezvous
 ChipError::StorageType pychip_DeviceController_ConnectBLE(chip::Controller::DeviceCommissioner * devCtrl, uint16_t discriminator,
                                                           uint32_t setupPINCode, chip::NodeId nodeid);
 ChipError::StorageType pychip_DeviceController_ConnectIP(chip::Controller::DeviceCommissioner * devCtrl, const char * peerAddrStr,
                                                          uint32_t setupPINCode, chip::NodeId nodeid);
+ChipError::StorageType pychip_DeviceController_ConnectWithCode(chip::Controller::DeviceCommissioner * devCtrl,
+                                                               const char * onboardingPayload, chip::NodeId nodeid);
 ChipError::StorageType pychip_DeviceController_SetThreadOperationalDataset(const char * threadOperationalDataset, uint32_t size);
 ChipError::StorageType pychip_DeviceController_SetWiFiCredentials(const char * ssid, const char * credentials);
 ChipError::StorageType pychip_DeviceController_CloseSession(chip::Controller::DeviceCommissioner * devCtrl, chip::NodeId nodeid);
@@ -152,7 +157,6 @@ ChipError::StorageType pychip_DeviceController_OpenCommissioningWindow(chip::Con
 void pychip_DeviceController_PrintDiscoveredDevices(chip::Controller::DeviceCommissioner * devCtrl);
 bool pychip_DeviceController_GetIPForDiscoveredDevice(chip::Controller::DeviceCommissioner * devCtrl, int idx, char * addrStr,
                                                       uint32_t len);
-ChipError::StorageType pychip_DeviceController_UpdateDevice(chip::Controller::DeviceCommissioner * devCtrl, chip::NodeId nodeid);
 
 // Pairing Delegate
 ChipError::StorageType
@@ -186,7 +190,7 @@ uint64_t pychip_GetCommandSenderHandle(chip::DeviceProxy * device);
 // CHIP Stack objects
 ChipError::StorageType pychip_BLEMgrImpl_ConfigureBle(uint32_t bluetoothAdapterId);
 
-chip::ChipError::StorageType pychip_InteractionModel_ShutdownSubscription(uint64_t subscriptionId);
+chip::ChipError::StorageType pychip_InteractionModel_ShutdownSubscription(SubscriptionId subscriptionId);
 
 //
 // Storage
@@ -225,8 +229,11 @@ ChipError::StorageType pychip_DeviceController_StackInit()
 
     sGroupDataProvider.SetStorageDelegate(sStorageAdapter);
     ReturnErrorOnFailure(sGroupDataProvider.Init().AsInteger());
+    factoryParams.groupDataProvider = &sGroupDataProvider;
 
-    factoryParams.groupDataProvider        = &sGroupDataProvider;
+    ReturnErrorOnFailure(sPersistentStorageOpCertStore.Init(sStorageAdapter).AsInteger());
+    factoryParams.opCertStore = &sPersistentStorageOpCertStore;
+
     factoryParams.enableServerInteractions = true;
 
     ReturnErrorOnFailure(DeviceControllerFactory::GetInstance().Init(factoryParams).AsInteger());
@@ -270,6 +277,12 @@ ChipError::StorageType pychip_DeviceController_GetCompressedFabricId(chip::Contr
 ChipError::StorageType pychip_DeviceController_GetFabricId(chip::Controller::DeviceCommissioner * devCtrl, uint64_t * outFabricId)
 {
     *outFabricId = devCtrl->GetFabricId();
+    return CHIP_NO_ERROR.AsInteger();
+}
+
+ChipError::StorageType pychip_DeviceController_GetNodeId(chip::Controller::DeviceCommissioner * devCtrl, uint64_t * outNodeId)
+{
+    *outNodeId = devCtrl->GetNodeId();
     return CHIP_NO_ERROR.AsInteger();
 }
 
@@ -331,6 +344,12 @@ ChipError::StorageType pychip_DeviceController_ConnectIP(chip::Controller::Devic
     return devCtrl->PairDevice(nodeid, params, sCommissioningParameters).AsInteger();
 }
 
+ChipError::StorageType pychip_DeviceController_ConnectWithCode(chip::Controller::DeviceCommissioner * devCtrl,
+                                                               const char * onboardingPayload, chip::NodeId nodeid)
+{
+    return devCtrl->PairDevice(nodeid, onboardingPayload, sCommissioningParameters).AsInteger();
+}
+
 ChipError::StorageType pychip_DeviceController_SetThreadOperationalDataset(const char * threadOperationalDataset, uint32_t size)
 {
     ReturnErrorCodeIf(!sThreadBuf.Alloc(size), CHIP_ERROR_NO_MEMORY.AsInteger());
@@ -350,8 +369,6 @@ ChipError::StorageType pychip_DeviceController_SetWiFiCredentials(const char * s
 
     sCommissioningParameters.SetWiFiCredentials(
         chip::Controller::WiFiCredentials(ByteSpan(sSsidBuf.Get(), ssidSize), ByteSpan(sCredsBuf.Get(), credsSize)));
-    char tmp[128];
-    chip::Platform::CopyString(tmp, sCommissioningParameters.GetWiFiCredentials().Value().ssid);
     return CHIP_NO_ERROR.AsInteger();
 }
 
@@ -455,42 +472,45 @@ void pychip_DeviceController_PrintDiscoveredDevices(chip::Controller::DeviceComm
             continue;
         }
         char rotatingId[chip::Dnssd::kMaxRotatingIdLen * 2 + 1] = "";
-        Encoding::BytesToUppercaseHexString(dnsSdInfo->rotatingId, dnsSdInfo->rotatingIdLen, rotatingId, sizeof(rotatingId));
+        Encoding::BytesToUppercaseHexString(dnsSdInfo->commissionData.rotatingId, dnsSdInfo->commissionData.rotatingIdLen,
+                                            rotatingId, sizeof(rotatingId));
 
         ChipLogProgress(Discovery, "Commissionable Node %d", i);
-        ChipLogProgress(Discovery, "\tInstance name:\t\t%s", dnsSdInfo->instanceName);
-        ChipLogProgress(Discovery, "\tHost name:\t\t%s", dnsSdInfo->hostName);
-        ChipLogProgress(Discovery, "\tPort:\t\t\t%u", dnsSdInfo->port);
-        ChipLogProgress(Discovery, "\tLong discriminator:\t%u", dnsSdInfo->longDiscriminator);
-        ChipLogProgress(Discovery, "\tVendor ID:\t\t%u", dnsSdInfo->vendorId);
-        ChipLogProgress(Discovery, "\tProduct ID:\t\t%u", dnsSdInfo->productId);
-        ChipLogProgress(Discovery, "\tCommissioning Mode\t%u", dnsSdInfo->commissioningMode);
-        ChipLogProgress(Discovery, "\tDevice Type\t\t%u", dnsSdInfo->deviceType);
-        ChipLogProgress(Discovery, "\tDevice Name\t\t%s", dnsSdInfo->deviceName);
+        ChipLogProgress(Discovery, "\tInstance name:\t\t%s", dnsSdInfo->commissionData.instanceName);
+        ChipLogProgress(Discovery, "\tHost name:\t\t%s", dnsSdInfo->resolutionData.hostName);
+        ChipLogProgress(Discovery, "\tPort:\t\t\t%u", dnsSdInfo->resolutionData.port);
+        ChipLogProgress(Discovery, "\tLong discriminator:\t%u", dnsSdInfo->commissionData.longDiscriminator);
+        ChipLogProgress(Discovery, "\tVendor ID:\t\t%u", dnsSdInfo->commissionData.vendorId);
+        ChipLogProgress(Discovery, "\tProduct ID:\t\t%u", dnsSdInfo->commissionData.productId);
+        ChipLogProgress(Discovery, "\tCommissioning Mode\t%u", dnsSdInfo->commissionData.commissioningMode);
+        ChipLogProgress(Discovery, "\tDevice Type\t\t%u", dnsSdInfo->commissionData.deviceType);
+        ChipLogProgress(Discovery, "\tDevice Name\t\t%s", dnsSdInfo->commissionData.deviceName);
         ChipLogProgress(Discovery, "\tRotating Id\t\t%s", rotatingId);
-        ChipLogProgress(Discovery, "\tPairing Instruction\t%s", dnsSdInfo->pairingInstruction);
-        ChipLogProgress(Discovery, "\tPairing Hint\t\t%u", dnsSdInfo->pairingHint);
-        if (dnsSdInfo->GetMrpRetryIntervalIdle().HasValue())
+        ChipLogProgress(Discovery, "\tPairing Instruction\t%s", dnsSdInfo->commissionData.pairingInstruction);
+        ChipLogProgress(Discovery, "\tPairing Hint\t\t%u", dnsSdInfo->commissionData.pairingHint);
+        if (dnsSdInfo->resolutionData.GetMrpRetryIntervalIdle().HasValue())
         {
-            ChipLogProgress(Discovery, "\tMrp Interval idle\t%u", dnsSdInfo->GetMrpRetryIntervalIdle().Value().count());
+            ChipLogProgress(Discovery, "\tMrp Interval idle\t%u",
+                            dnsSdInfo->resolutionData.GetMrpRetryIntervalIdle().Value().count());
         }
         else
         {
             ChipLogProgress(Discovery, "\tMrp Interval idle\tNot present");
         }
-        if (dnsSdInfo->GetMrpRetryIntervalActive().HasValue())
+        if (dnsSdInfo->resolutionData.GetMrpRetryIntervalActive().HasValue())
         {
-            ChipLogProgress(Discovery, "\tMrp Interval active\t%u", dnsSdInfo->GetMrpRetryIntervalActive().Value().count());
+            ChipLogProgress(Discovery, "\tMrp Interval active\t%u",
+                            dnsSdInfo->resolutionData.GetMrpRetryIntervalActive().Value().count());
         }
         else
         {
             ChipLogProgress(Discovery, "\tMrp Interval active\tNot present");
         }
-        ChipLogProgress(Discovery, "\tSupports TCP\t\t%d", dnsSdInfo->supportsTcp);
-        for (unsigned j = 0; j < dnsSdInfo->numIPs; ++j)
+        ChipLogProgress(Discovery, "\tSupports TCP\t\t%d", dnsSdInfo->resolutionData.supportsTcp);
+        for (unsigned j = 0; j < dnsSdInfo->resolutionData.numIPs; ++j)
         {
             char buf[chip::Inet::IPAddress::kMaxStringLength];
-            dnsSdInfo->ipAddress[j].ToString(buf);
+            dnsSdInfo->resolutionData.ipAddress[j].ToString(buf);
             ChipLogProgress(Discovery, "\tAddress %d:\t\t%s", j, buf);
         }
     }
@@ -505,7 +525,7 @@ bool pychip_DeviceController_GetIPForDiscoveredDevice(chip::Controller::DeviceCo
         return false;
     }
     // TODO(cecille): Select which one we actually want.
-    if (dnsSdInfo->ipAddress[0].ToString(addrStr, len) == addrStr)
+    if (dnsSdInfo->resolutionData.ipAddress[0].ToString(addrStr, len) == addrStr)
     {
         return true;
     }
@@ -533,11 +553,6 @@ ChipError::StorageType pychip_ScriptDevicePairingDelegate_SetCommissioningStatus
 {
     sPairingDelegate.SetCommissioningStatusUpdateCallback(callback);
     return CHIP_NO_ERROR.AsInteger();
-}
-
-ChipError::StorageType pychip_DeviceController_UpdateDevice(chip::Controller::DeviceCommissioner * devCtrl, chip::NodeId nodeid)
-{
-    return devCtrl->UpdateDevice(nodeid).AsInteger();
 }
 
 ChipError::StorageType pychip_Stack_Init()
@@ -627,7 +642,8 @@ ChipError::StorageType pychip_GetDeviceBeingCommissioned(chip::Controller::Devic
 ChipError::StorageType pychip_DeviceCommissioner_CloseBleConnection(chip::Controller::DeviceCommissioner * devCtrl)
 {
 #if CONFIG_NETWORK_LAYER_BLE
-    return devCtrl->CloseBleConnection().AsInteger();
+    devCtrl->CloseBleConnection();
+    return CHIP_NO_ERROR.AsInteger();
 #else
     return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE.AsInteger();
 #endif

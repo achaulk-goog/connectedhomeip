@@ -151,6 +151,7 @@ private:
 
     otInstance * mOTInst;
     uint64_t mOverrunCount = 0;
+    bool mIsAttached       = false;
 
     NetworkCommissioning::ThreadDriver::ScanCallback * mpScanCallback;
     NetworkCommissioning::Internal::WirelessDriver::ConnectCallback * mpConnectCallback;
@@ -171,21 +172,13 @@ private:
         static constexpr uint8_t kDefaultDomainNameSize  = 20;
         static constexpr uint8_t kMaxDomainNameSize      = 32;
 
-#if CHIP_DEVICE_CONFIG_ENABLE_EXTENDED_DISCOVERY
-        // Thread supports both operational and commissionable discovery, so buffers sizes must be worst case.
+        // SRP is used for both operational and commissionable services, so buffers sizes must be worst case.
         static constexpr size_t kSubTypeMaxNumber   = Dnssd::Common::kSubTypeMaxNumber;
         static constexpr size_t kSubTypeTotalLength = Dnssd::Common::kSubTypeTotalLength;
         static constexpr size_t kTxtMaxNumber =
             std::max(Dnssd::CommissionAdvertisingParameters::kTxtMaxNumber, Dnssd::OperationalAdvertisingParameters::kTxtMaxNumber);
         static constexpr size_t kTxtTotalValueLength = std::max(Dnssd::CommissionAdvertisingParameters::kTxtTotalValueSize,
                                                                 Dnssd::OperationalAdvertisingParameters::kTxtTotalValueSize);
-#else
-        // Thread only supports operational discovery.
-        static constexpr size_t kSubTypeMaxNumber    = Dnssd::Operational::kSubTypeMaxNumber;
-        static constexpr size_t kSubTypeTotalLength  = Dnssd::Operational::kSubTypeTotalLength;
-        static constexpr size_t kTxtMaxNumber        = Dnssd::OperationalAdvertisingParameters::kTxtMaxNumber;
-        static constexpr size_t kTxtTotalValueLength = Dnssd::OperationalAdvertisingParameters::kTxtTotalValueSize;
-#endif
 
         static constexpr size_t kServiceBufferSize = Dnssd::Common::kInstanceNameMaxLength + 1 + // add null-terminator
             Dnssd::kDnssdTypeAndProtocolMaxSize + 1 +                                            // add null-terminator
@@ -201,7 +194,9 @@ private:
             otDnsTxtEntry mTxtEntries[kTxtMaxNumber];
 
             bool IsUsed() const { return mService.mInstanceName != nullptr; }
-            bool Matches(const char * aInstanceName, const char * aName) const;
+            bool Matches(const char * instanceName, const char * name) const;
+            bool Matches(const char * instanceName, const char * name, uint16_t port, const Span<const char * const> & subTypes,
+                         const Span<const Dnssd::TextEntry> & txtEntries) const;
         };
 
         char mHostName[Dnssd::kHostNameMaxLength + 1];

@@ -28,14 +28,6 @@ config:
         defaultValue: "MT:-24J0AFN00KA0648G00" # This value needs to be generated automatically
 
 tests:
-    - label: "Reboot target device"
-      cluster: "SystemCommands"
-      command: "Reboot"
-      arguments:
-          values:
-              - name: "discriminator"
-                value: discriminator
-
     - label: "TH_CR1 starts a commissioning process with DUT_CE"
       cluster: "DelayCommands"
       command: "WaitForCommissionee"
@@ -77,7 +69,7 @@ tests:
     - label: "Commission from beta"
       identity: "beta"
       cluster: "CommissionerCommands"
-      command: "PairWithQRCode"
+      command: "PairWithCode"
       arguments:
           values:
               - name: "nodeId"

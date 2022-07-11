@@ -29,7 +29,7 @@ import unittest
 
 
 def parseText(txt):
-    return CreateParser().parse(txt)
+    return CreateParser(skip_meta=True).parse(txt)
 
 
 class TestParser(unittest.TestCase):
@@ -342,11 +342,25 @@ class TestParser(unittest.TestCase):
                     ])])
         self.assertEqual(actual, expected)
 
+    def test_parsing_metadata_for_cluster(self):
+        actual = CreateParser(skip_meta=False).parse("""
+server cluster A = 1 { /* Test comment */ }
+
+// some empty lines and then indented
+   client cluster B = 2 { }
+        """)
+
+        expected = Idl(clusters=[
+            Cluster(parse_meta=ParseMetaData(line=2, column=1), side=ClusterSide.SERVER, name="A", code=1),
+            Cluster(parse_meta=ParseMetaData(line=5, column=4), side=ClusterSide.CLIENT, name="B", code=2),
+        ])
+        self.assertEqual(actual, expected)
+
     def test_multiple_clusters(self):
         actual = parseText("""
-            server cluster A = 1 {}
-            client cluster B = 2 {}
-            client cluster C = 3 {}
+            server cluster A = 1 { /* Test comment */ }
+            client cluster B = 2 { }
+            client cluster C = 3 { }
         """)
 
         expected = Idl(clusters=[
@@ -359,16 +373,59 @@ class TestParser(unittest.TestCase):
     def test_endpoints(self):
         actual = parseText("""
             endpoint 12 {
-                server cluster Foo;
-                server cluster Bar;
+                device type foo = 123;
+                device type bar = 0xFF;
+
+                server cluster Foo { }
+                server cluster Bar { }
                 binding cluster Bar;
                 binding cluster Test;
             }
         """)
 
         expected = Idl(endpoints=[Endpoint(number=12,
-                                           server_clusters=["Foo", "Bar"],
+                                           device_types=[
+                                               DeviceType(name="foo", code=123),
+                                               DeviceType(name="bar", code=0xFF),
+                                           ],
+                                           server_clusters=[
+                                               ServerClusterInstantiation(name="Foo"),
+                                               ServerClusterInstantiation(name="Bar"),
+                                           ],
                                            client_bindings=["Bar", "Test"],)
+                                  ])
+        self.assertEqual(actual, expected)
+
+    def test_cluster_instantiation(self):
+        actual = parseText("""
+            endpoint 3 {
+                server cluster Example {
+                    ram attribute inRamZero;
+                    ram attribute inRamWithDefault default=123;
+                    persist attribute inNVMNoDef;
+                    persist attribute inNVMStr default="abc";
+                    persist attribute inNVMWithDefault default = -33;
+                    callback attribute hasCallbackBool default = true;
+                }
+            }
+        """)
+
+        expected = Idl(endpoints=[Endpoint(number=3,
+                                           server_clusters=[
+                                               ServerClusterInstantiation(name="Example", attributes=[
+                                                   AttributeInstantiation(name='inRamZero', storage=AttributeStorage.RAM),
+                                                   AttributeInstantiation(name='inRamWithDefault',
+                                                                          storage=AttributeStorage.RAM, default=123),
+                                                   AttributeInstantiation(name='inNVMNoDef', storage=AttributeStorage.PERSIST),
+                                                   AttributeInstantiation(
+                                                       name='inNVMStr', storage=AttributeStorage.PERSIST, default="abc"),
+                                                   AttributeInstantiation(name='inNVMWithDefault',
+                                                                          storage=AttributeStorage.PERSIST, default=-33),
+                                                   AttributeInstantiation(name='hasCallbackBool',
+                                                                          storage=AttributeStorage.CALLBACK, default=True),
+                                               ]),
+                                           ],
+                                           client_bindings=[],)
                                   ])
         self.assertEqual(actual, expected)
 

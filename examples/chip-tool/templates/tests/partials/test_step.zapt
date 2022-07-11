@@ -2,7 +2,7 @@
 
 {{~#*inline "maybePICS"}}
 {{#if PICS}}
-    VerifyOrdo(!ShouldSkip("{{PICS}}"), return ContinueOnChipMainThread(CHIP_NO_ERROR));
+    VerifyOrDo(!ShouldSkip("{{PICS}}"), return ContinueOnChipMainThread(CHIP_NO_ERROR));
 {{/if}}
 {{/inline~}}
 
@@ -14,10 +14,8 @@
 
 {{~#*inline "maybePrepareArguments"}}
 {{#unless isWait}}
-{{#if (isTestOnlyCluster cluster)}}
-    SetIdentity({{>kIdentity}});
-{{else if hasSpecificArguments}}
-    {{#if (chip_tests_item_has_list)}}ListFreer listFreer;{{/if~}}
+{{#if hasSpecificArguments}}
+    ListFreer listFreer;
     {{asEncodableType}} value;
     {{#chip_tests_item_parameters}}
         {{>commandValue ns=parent.cluster container=(asPropertyValue dontUnwrapValue=true) definedValue=definedValue depth=0}}
@@ -26,34 +24,52 @@
 {{/unless}}
 {{/inline~}}
 
-{{~#*inline "testOnlyClusterArguments"}}
-{{#chip_tests_item_parameters}}{{#not_first}},{{/not_first}}
-    {{#*inline "defaultValue"}}{{asTypedLiteral (chip_tests_config_get_default_value definedValue) (chip_tests_config_get_type definedValue)}}{{/inline}}
-    {{~#if (chip_tests_config_has definedValue)~}}
-        m{{asUpperCamelCase definedValue}}.HasValue() ? m{{asUpperCamelCase definedValue}}.Value() : {{~#if (isString type)}}chip::CharSpan::fromCharString("{{>defaultValue}}"){{else}}{{>defaultValue}}{{/if~}}
-    {{~else if (isString type)}}
-        "{{definedValue}}"
-    {{else}}
-        {{definedValue}}
-    {{~/if~}}
-{{/chip_tests_item_parameters}}
-{{/inline~}}
-
-
 {{~#*inline "maybeFabricFiltered"}}
-{{#unless isWait}}
-{{#unless fabricFiltered}}
+{{#if fabricFiltered}}
+    , true
+{{else}}
     , false
-{{/unless}}
-{{/unless}}
+{{/if}}
 {{/inline~}}
 
-{{~#*inline "maybeTimedInteractionTimeout"}}
+{{~#*inline "maybeSuppressResponse"}}
+{{#if suppressResponse}}
+    , chip::Optional<bool>({{suppressResponse}})
+{{else}}
+    , chip::NullOptional
+{{/if}}
+{{/inline~}}
+
+{{~#*inline "maybeDataVersion"}}
+{{#if dataVersion}}
+    , chip::Optional<chip::DataVersion>({{dataVersion}})
+{{else}}
+    , chip::NullOptional
+{{/if}}
+{{/inline~}}
+
+{{~#*inline "maybeTimedInteractionTimeoutMs"}}
 {{#if timedInteractionTimeoutMs}}
     , chip::Optional<uint16_t>({{timedInteractionTimeoutMs}})
 {{else if commandObject.mustUseTimedInvoke}}
     , chip::NullOptional
 {{else if attributeObject.mustUseTimedWrite}}
+    , chip::NullOptional
+{{/if}}
+{{/inline~}}
+
+{{~#*inline "maybeEventNumber"}}
+{{#if eventNumber}}
+    , chip::Optional<chip::EventNumber>({{eventNumber}})
+{{else}}
+    , chip::NullOptional
+{{/if}}
+{{/inline~}}
+
+{{~#*inline "maybeKeepSubscriptions"}}
+{{#if keepSubscriptions}}
+    , chip::Optional<bool>({{keepSubscriptions}})
+{{else}}
     , chip::NullOptional
 {{/if}}
 {{/inline~}}
@@ -66,6 +82,7 @@
 {{~#*inline "eventId"}}{{>clusterName}}::Events::{{asUpperCamelCase event}}::Id{{/inline~}}
 {{~#*inline "commandId"}}{{>clusterName}}::Commands::{{asUpperCamelCase command}}::Id{{/inline~}}
 
+{{~#*inline "testOnlyClusterArguments"}}{{>kIdentity}}{{/inline~}}
 {{~#*inline "attributeArguments"}}{{>kIdentity}}, {{>endpointId}}, {{>clusterId}}, {{>attributeId}}{{/inline~}}
 {{~#*inline "eventArguments"}}{{>kIdentity}}, {{>endpointId}}, {{>clusterId}}, {{>eventId}}{{/inline~}}
 {{~#*inline "commandArguments"}}{{>kIdentity}}, {{>endpointId}}, {{>clusterId}}, {{>commandId}}{{/inline~}}
@@ -86,16 +103,16 @@
 {{/inline~}}
 
 {{~#*inline "arguments"}}
-{{#if (isTestOnlyCluster cluster)}}{{>testOnlyClusterArguments}}
+{{#if (isTestOnlyCluster cluster)}}{{>testOnlyClusterArguments}}, value
 {{else if isWait}}                 {{>waitArguments}}
-{{else if isReadAttribute}}        {{>attributeArguments}}{{>maybeFabricFiltered~}}
-{{else if isSubscribeAttribute}}   {{>attributeArguments}}, {{minInterval}}, {{maxInterval}}{{>maybeFabricFiltered~}}
-{{else if isWriteGroupAttribute}}  {{>groupAttributeArguments}}, value{{>maybeTimedInteractionTimeout~}}
-{{else if isWriteAttribute}}       {{>attributeArguments}}, value{{>maybeTimedInteractionTimeout~}}
-{{else if isReadEvent}}            {{>eventArguments}}{{>maybeFabricFiltered}}
-{{else if isSubscribeEvent}}       {{>eventArguments}}, {{minInterval}}, {{maxInterval}}{{>maybeFabricFiltered~}}
-{{else if isGroupCommand}}         {{>groupCommandArguments}}, value{{>maybeTimedInteractionTimeout~}}
-{{else if isCommand}}              {{>commandArguments}}, value{{>maybeTimedInteractionTimeout~}}
+{{else if isReadAttribute}}        {{>attributeArguments}}{{>maybeFabricFiltered}}{{>maybeDataVersion~}}
+{{else if isSubscribeAttribute}}   {{>attributeArguments}}, {{minInterval}}, {{maxInterval}}{{>maybeFabricFiltered}}{{>maybeDataVersion}}{{>maybeKeepSubscriptions~}}
+{{else if isWriteGroupAttribute}}  {{>groupAttributeArguments}}, value{{>maybeDataVersion~}}
+{{else if isWriteAttribute}}       {{>attributeArguments}}, value{{>maybeTimedInteractionTimeoutMs}}{{>maybeSuppressResponse}}{{>maybeDataVersion~}}
+{{else if isReadEvent}}            {{>eventArguments}}{{>maybeFabricFiltered}}{{>maybeEventNumber~}}
+{{else if isSubscribeEvent}}       {{>eventArguments}}, {{minInterval}}, {{maxInterval}}{{>maybeFabricFiltered}}{{>maybeEventNumber}}{{>maybeKeepSubscriptions~}}
+{{else if isGroupCommand}}         {{>groupCommandArguments}}, value
+{{else if isCommand}}              {{>commandArguments}}, value{{>maybeTimedInteractionTimeoutMs}}{{>maybeSuppressResponse}}
 {{/if}}
 {{/inline~}}
 

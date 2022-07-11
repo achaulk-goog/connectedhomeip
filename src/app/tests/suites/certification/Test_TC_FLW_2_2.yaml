@@ -29,18 +29,30 @@ tests:
                 value: nodeId
 
     - label: "read the mandatory attribute: MeasuredValue"
+      PICS: FLW.S.A0000
       command: "readAttribute"
       attribute: "MeasuredValue"
       response:
+          saveAs: ValueBeforeChange
           constraints:
               type: uint16
 
     - label: "operate on DUT to change the flow significantly"
-      disabled: true
+      cluster: "LogCommands"
+      command: "UserPrompt"
+      PICS: PICS_USER_PROMPT && FLW.M.FlowChange
+      arguments:
+          values:
+              - name: "message"
+                value: "Please enter 'y' for success"
+              - name: "expectedValue"
+                value: "y"
 
     - label: "read the mandatory attribute: MeasuredValue"
+      PICS: FLW.S.A0000
       command: "readAttribute"
       attribute: "MeasuredValue"
       response:
           constraints:
               type: uint16
+              notValue: ValueBeforeChange

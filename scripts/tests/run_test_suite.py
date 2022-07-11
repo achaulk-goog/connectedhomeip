@@ -119,7 +119,9 @@ def main(context, log_level, target, target_glob, target_skip_glob,
 
     # Figures out selected test that match the given name(s)
     all_tests = [test for test in chiptest.AllTests(chip_tool)]
-    tests = all_tests
+
+    # Default to only non-manual tests unless explicit targets are specified.
+    tests = list(filter(lambda test: not test.is_manual, all_tests))
     if 'all' not in target:
         tests = []
         for name in target:
@@ -131,6 +133,7 @@ def main(context, log_level, target, target_glob, target_skip_glob,
 
     if target_glob:
         matcher = GlobMatcher(target_glob.lower())
+        # Globs ignore manual tests, because it's too easy to mess up otherwise.
         tests = [test for test in tests if matcher.matches(test.name.lower())]
 
     if len(tests) == 0:
@@ -172,6 +175,12 @@ def cmd_list(context):
     '--lock-app',
     help='what lock app to use')
 @click.option(
+    '--ota-provider-app',
+    help='what ota provider app to use')
+@click.option(
+    '--ota-requestor-app',
+    help='what ota requestor app to use')
+@click.option(
     '--tv-app',
     help='what tv app to use')
 @click.option(
@@ -179,8 +188,13 @@ def cmd_list(context):
     type=click.Path(exists=True),
     default="src/app/tests/suites/certification/ci-pics-values",
     help='PICS file to use for test runs.')
+@click.option(
+    '--test-timeout-seconds',
+    default=None,
+    type=int,
+    help='If provided, fail if a test runs for longer than this time')
 @click.pass_context
-def cmd_run(context, iterations, all_clusters_app, lock_app, tv_app, pics_file):
+def cmd_run(context, iterations, all_clusters_app, lock_app, ota_provider_app, ota_requestor_app, tv_app, pics_file, test_timeout_seconds):
     runner = chiptest.runner.Runner()
 
     if all_clusters_app is None:
@@ -188,6 +202,12 @@ def cmd_run(context, iterations, all_clusters_app, lock_app, tv_app, pics_file):
 
     if lock_app is None:
         lock_app = FindBinaryPath('chip-lock-app')
+
+    if ota_provider_app is None:
+        ota_provider_app = FindBinaryPath('chip-ota-provider-app')
+
+    if ota_requestor_app is None:
+        ota_requestor_app = FindBinaryPath('chip-ota-requestor-app')
 
     if tv_app is None:
         tv_app = FindBinaryPath('chip-tv-app')
@@ -197,6 +217,8 @@ def cmd_run(context, iterations, all_clusters_app, lock_app, tv_app, pics_file):
         chip_tool=[context.obj.chip_tool],
         all_clusters_app=[all_clusters_app],
         lock_app=[lock_app],
+        ota_provider_app=[ota_provider_app],
+        ota_requestor_app=[ota_requestor_app],
         tv_app=[tv_app]
     )
 
@@ -221,14 +243,14 @@ def cmd_run(context, iterations, all_clusters_app, lock_app, tv_app, pics_file):
     for i in range(iterations):
         logging.info("Starting iteration %d" % (i+1))
         for test in context.obj.tests:
-            test_start = time.time()
+            test_start = time.monotonic()
             try:
-                test.Run(runner, apps_register, paths, pics_file)
-                test_end = time.time()
+                test.Run(runner, apps_register, paths, pics_file, test_timeout_seconds)
+                test_end = time.monotonic()
                 logging.info('%-20s - Completed in %0.2f seconds' %
                              (test.name, (test_end - test_start)))
             except Exception:
-                test_end = time.time()
+                test_end = time.monotonic()
                 logging.exception('%s - FAILED in %0.2f seconds' %
                                   (test.name, (test_end - test_start)))
                 apps_register.uninit()

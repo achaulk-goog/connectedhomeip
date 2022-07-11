@@ -44,6 +44,7 @@ RUN set -x \
     http://download.tizen.org/sdk/tizenstudio/official/binary/certificate-generator_0.1.3_ubuntu-64.zip \
     http://download.tizen.org/sdk/tizenstudio/official/binary/new-common-cli_2.5.7_ubuntu-64.zip \
     http://download.tizen.org/sdk/tizenstudio/official/binary/new-native-cli_2.5.7_ubuntu-64.zip \
+    http://download.tizen.org/sdk/tizenstudio/official/binary/sdb_4.2.23_ubuntu-64.zip \
     # Install tizen studio CLI
     && unzip -o '*.zip' \
     && cp -rf data/* $TIZEN_SDK_ROOT \
@@ -55,7 +56,8 @@ RUN set -x \
     && : # last line
 
 COPY secret-tool.py $TIZEN_SDK_ROOT/tools/certificate-encryptor/secret-tool
-ENV PATH="$TIZEN_SDK_ROOT/tools/ide/bin:$PATH"
+RUN chmod 0755 $TIZEN_SDK_ROOT/tools/certificate-encryptor/secret-tool
+ENV PATH="$TIZEN_SDK_ROOT/tools/ide/bin:$TIZEN_SDK_ROOT/tools:$PATH"
 
 # ------------------------------------------------------------------------------
 # Get toolchain
@@ -85,37 +87,62 @@ RUN set -x \
     http://download.tizen.org/sdk/tizenstudio/official/binary/mobile-$TIZEN_VERSION-core-add-ons_0.0.262_ubuntu-64.zip \
     http://download.tizen.org/sdk/tizenstudio/official/binary/mobile-$TIZEN_VERSION-rs-device.core_0.0.123_ubuntu-64.zip \
     # Base packages
-    && wget -r -nd --no-parent -q -A 'pcre-devel-*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/base/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'libffi-devel-*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/base/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'libmount-devel-*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/base/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'libblkid-devel-*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/base/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'libcap-*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/base/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'liblzma-*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/base/latest/repos/standard/packages/armv7l/ \
+    && wget --progress=dot:mega -r -nd --no-parent \
+    http://download.tizen.org/releases/milestone/tizen/base/latest/repos/standard/packages/armv7l/ \
+    -A 'iniparser-*.armv7l.rpm' \
+    -A 'libblkid-devel-*.armv7l.rpm' \
+    -A 'libcap-*.armv7l.rpm' \
+    -A 'libffi-devel-*.armv7l.rpm' \
+    -A 'liblzma-*.armv7l.rpm' \
+    -A 'libmount-devel-*.armv7l.rpm' \
+    -A 'libncurses6-*.armv7l.rpm' \
+    -A 'libreadline-*.armv7l.rpm' \
+    -A 'libuuid-*.armv7l.rpm' \
+    -A 'pcre-devel-*.armv7l.rpm' \
+    -A 'readline-devel-*.armv7l.rpm' \
+    -A 'xdgmime-*.armv7l.rpm' \
     # Unified packages
-    && wget -r -nd --no-parent -q -A 'vconf-compat-*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/unified/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'libcynara-commons-*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/unified/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'cynara-devel-*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/unified/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'libcynara-client-*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/unified/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'dbus-1*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/unified/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'dbus-devel-*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/unified/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'dbus-libs-1*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/unified/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'glib2-devel-2*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/unified/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'libdns_sd-*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/unified/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'buxton2-*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/unified/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'libsystemd-*.armv7l.rpm' http://download.tizen.org/releases/milestone/tizen/unified/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'capi-network-nsd-*.armv7l.rpm' http://download.tizen.org/snapshots/tizen/unified/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'libnsd-dns-sd-*.armv7l.rpm' http://download.tizen.org/snapshots/tizen/unified/latest/repos/standard/packages/armv7l/ \
-    && wget -r -nd --no-parent -q -A 'capi-network-thread-*.armv7l.rpm' http://download.tizen.org/snapshots/tizen/unified/latest/repos/standard/packages/armv7l/ \
+    && wget --progress=dot:mega -r -nd --no-parent \
+    http://download.tizen.org/releases/milestone/tizen/unified/latest/repos/standard/packages/armv7l/ \
+    -A 'aul-0*.armv7l.rpm' \
+    -A 'aul-devel-*.armv7l.rpm' \
+    -A 'bundle-0*.armv7l.rpm' \
+    -A 'bundle-devel-*.armv7l.rpm' \
+    -A 'buxton2-*.armv7l.rpm' \
+    -A 'cynara-devel-*.armv7l.rpm' \
+    -A 'dbus-1*.armv7l.rpm' \
+    -A 'dbus-devel-*.armv7l.rpm' \
+    -A 'dbus-libs-1*.armv7l.rpm' \
+    -A 'glib2-devel-2*.armv7l.rpm' \
+    -A 'json-glib-devel-*.armv7l.rpm' \
+    -A 'libcynara-client-*.armv7l.rpm' \
+    -A 'libcynara-commons-*.armv7l.rpm' \
+    -A 'libdns_sd-*.armv7l.rpm' \
+    -A 'libjson-glib-*.armv7l.rpm' \
+    -A 'libsessiond-0*.armv7l.rpm' \
+    -A 'libsystemd-*.armv7l.rpm' \
+    -A 'libtzplatform-config-*.armv7l.rpm' \
+    -A 'parcel-0*.armv7l.rpm' \
+    -A 'parcel-devel-*.armv7l.rpm' \
+    -A 'pkgmgr-info-*.armv7l.rpm' \
+    -A 'vconf-compat-*.armv7l.rpm' \
+    -A 'vconf-internal-keys-devel-*.armv7l.rpm' \
+    # Unified packages (snapshots)
+    && wget --progress=dot:mega -r -nd --no-parent \
+    http://download.tizen.org/snapshots/tizen/unified/latest/repos/standard/packages/armv7l/ \
+    -A 'capi-network-nsd-*.armv7l.rpm' \
+    -A 'capi-network-thread-*.armv7l.rpm' \
+    -A 'libnsd-dns-sd-*.armv7l.rpm' \
     # Install base sysroot
     && unzip -o '*.zip' \
     && cp -rf data/* $TIZEN_SDK_ROOT \
     # Install packages
     && unrpm *.rpm \
     && cp -rf lib usr $TIZEN_SDK_SYSROOT \
-    # Fix some symbolic links
-    && ln -sf libcap.so.2 $TIZEN_SDK_SYSROOT/usr/lib/libcap.so \
-    && ln -sf libdns_sd.so.878.70.2 $TIZEN_SDK_SYSROOT/usr/lib/libdns_sd.so \
-    && ln -sf libdns_sd.so.878.70.2 $TIZEN_SDK_SYSROOT/usr/lib/libdns_sd.so.878 \
+    # Make symbolic links relative
+    && for LNK in $(find $TIZEN_SDK_SYSROOT/usr/lib -maxdepth 1 -type l); \
+    do ln -sf $(basename $(readlink "$LNK")) "$LNK" ; done \
+    && ln -sf ../../lib/libcap.so.2 $TIZEN_SDK_SYSROOT/usr/lib/libcap.so \
     && ln -sf openssl1.1.pc $TIZEN_SDK_SYSROOT/usr/lib/pkgconfig/openssl.pc \
     # Cleanup
     && rm -rf /tmp/workdir \
@@ -125,13 +152,3 @@ RUN set -x \
 # Switch to the non-root user
 USER $USER_NAME
 WORKDIR $USER_HOME
-
-# ------------------------------------------------------------------------------
-# Setup tizen studio CLI
-RUN set -x \
-    # Generate author certificate
-    && tizen certificate --alias=CHIP --name=CHIP --email=chip@tizen.org --password=chiptizen \
-    # Add new security profile
-    && tizen security-profiles add --active --name=CHIP --author=$HOME/tizen-sdk-data/keystore/author/author.p12 --password=chiptizen \
-    # Cleanup
-    && : # last line

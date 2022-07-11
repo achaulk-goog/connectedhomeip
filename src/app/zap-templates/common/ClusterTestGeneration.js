@@ -48,6 +48,8 @@ const kPICSName          = 'PICS';
 const kSaveAsName        = 'saveAs';
 const kFabricFiltered    = 'fabricFiltered';
 
+const kHexPrefix = 'hex:';
+
 class NullObject {
   toString()
   {
@@ -173,8 +175,12 @@ function setDefaultTypeForCommand(test)
     break;
 
   case 'waitForReport':
-    test.commandName     = 'WaitForReport';
-    test.isAttribute     = true;
+    test.commandName = 'WaitForReport';
+    if ('attribute' in test) {
+      test.isAttribute = true;
+    } else if ('event' in test) {
+      test.isEvent = true;
+    }
     test.isWaitForReport = true;
     break;
 
@@ -253,7 +259,9 @@ function setDefaultResponse(test, useSynthesizeWaitForReport)
     return;
   }
 
-  const defaultResponse = {};
+  test.expectMultipleResponses = test.isEvent;
+
+  const defaultResponse = test.expectMultipleResponses ? [] : {};
   setDefault(test, kResponseName, defaultResponse);
 
   // There is different syntax for expressing the expected response, but in the
@@ -359,8 +367,6 @@ function setDefaultResponse(test, useSynthesizeWaitForReport)
 
       setDefault(expectedValue, 'name', defaultName);
     });
-
-    test.expectMultipleResponses = test[kResponseName].length > 1;
 
     setDefault(response, kCommandName, test.command);
     setDefault(response, responseType, test[responseType]);
@@ -635,6 +641,12 @@ function chip_tests_variables_get_type(name, options)
   return variable.type;
 }
 
+function chip_tests_variables_is_nullable(name, options)
+{
+  const variable = getVariableOrThrow(this, 'tests', name);
+  return variable.isNullable;
+}
+
 function chip_tests_config(options)
 {
   return templateUtil.collectBlocks(this.variables.config, options, this);
@@ -816,6 +828,33 @@ function isLiteralNull(value, options)
   return (value === null) || (value instanceof NullObject);
 }
 
+function isHexString(value)
+{
+  return value && value.startsWith(kHexPrefix);
+}
+
+function octetStringFromHexString(value)
+{
+  const hexString = value.substring(kHexPrefix.length);
+
+  if (hexString.length % 2) {
+    throw new Error("The provided hexadecimal string contains an even number of characters");
+  }
+
+  if (!(/^[0-9a-fA-F]+$/.test(hexString))) {
+    throw new Error("The provided hexadecimal string contains invalid hexadecimal character.");
+  }
+
+  const bytes = hexString.match(/(..)/g);
+  return bytes.map(byte => '\\x' + byte).join('');
+}
+
+function octetStringLengthFromHexString(value)
+{
+  const hexString = value.substring(kHexPrefix.length);
+  return (hexString.length / 2);
+}
+
 function octetStringEscapedForCLiteral(value)
 {
   // Escape control characters, things outside the ASCII range, and single
@@ -836,7 +875,7 @@ function if_include_struct_item_value(structValue, name, options)
   }
 
   if (!this.isOptional) {
-    throw new Error(`Value not provided for ${name} where one is expected`);
+    throw new Error(`Value not provided for ${name} where one is expected in ` + JSON.stringify(structValue));
   }
 
   return options.inverse(this);
@@ -851,51 +890,153 @@ function ensureIsArray(value, options)
   }
 }
 
-function chip_tests_item_has_list(options)
+function checkIsInsideTestOnlyClusterBlock(conditions, name)
 {
-  function hasList(args)
-  {
-    for (let i = 0; i < args.length; i++) {
-      if (args[i].isArray) {
-        return true;
-      }
-
-      if (args[i].isStruct && hasList(args[i].items)) {
-        return true;
-      }
+  conditions.forEach(condition => {
+    if (condition == undefined) {
+      const errorStr = `Not inside a ({#${name}}} block.`;
+      console.error(errorStr);
+      throw new Error(errorStr);
     }
-
-    return false;
-  }
-
-  return assertCommandOrAttributeOrEvent(this).then(item => {
-    if (this.isWriteAttribute || this.isCommand) {
-      return hasList(item.arguments);
-    }
-
-    return false;
   });
+}
+
+/**
+ * Creates block iterator over the simulated clusters.
+ *
+ * @param {*} options
+ */
+async function chip_tests_only_clusters(options)
+{
+  const clusters         = await getClusters(this);
+  const testOnlyClusters = clusters.filter(cluster => isTestOnlyCluster(cluster.name));
+  return asBlocks.call(this, Promise.resolve(testOnlyClusters), options);
+}
+
+/**
+ * Creates block iterator over the cluster commands for a given simulated cluster.
+ *
+ * This function is meant to be used inside a {{#chip_tests_only_clusters}}
+ * block. It will throw otherwise.
+ *
+ * @param {*} options
+ */
+async function chip_tests_only_cluster_commands(options)
+{
+  const conditions = [ isTestOnlyCluster(this.name) ];
+  checkIsInsideTestOnlyClusterBlock(conditions, 'chip_tests_only_clusters');
+
+  const commands = await getCommands(this, this.name);
+  return asBlocks.call(this, Promise.resolve(commands), options);
+}
+
+/**
+ * Creates block iterator over the command arguments for a given simulated cluster command.
+ *
+ * This function is meant to be used inside a {{#chip_tests_only_cluster_commands}}
+ * block. It will throw otherwise.
+ *
+ * @param {*} options
+ */
+async function chip_tests_only_cluster_command_parameters(options)
+{
+  const conditions = [ isTestOnlyCluster(this.parent.name), this.arguments, this.response ];
+  checkIsInsideTestOnlyClusterBlock(conditions, 'chip_tests_only_cluster_commands');
+
+  return asBlocks.call(this, Promise.resolve(this.arguments), options);
+}
+
+/**
+ * Creates block iterator over the cluster responses for a given simulated cluster.
+ *
+ * This function is meant to be used inside a {{#chip_tests_only_clusters}}
+ * block. It will throw otherwise.
+ *
+ * @param {*} options
+ */
+async function chip_tests_only_cluster_responses(options)
+{
+  const conditions = [ isTestOnlyCluster(this.name) ];
+  checkIsInsideTestOnlyClusterBlock(conditions, 'chip_tests_only_clusters');
+
+  const commands  = await getCommands(this, this.name);
+  const responses = [];
+  commands.forEach(command => {
+    if (!command.response.arguments) {
+      return;
+    }
+
+    if (!('responseName' in command)) {
+      return;
+    }
+
+    const alreadyExists = responses.some(item => item.responseName == command.responseName);
+    if (alreadyExists) {
+      return;
+    }
+
+    command.response.responseName = command.responseName;
+    responses.push(command.response);
+  });
+
+  return asBlocks.call(this, Promise.resolve(responses), options);
+}
+
+/**
+ * Creates block iterator over the response arguments for a given simulated cluster response.
+ *
+ * This function is meant to be used inside a {{#chip_tests_only_cluster_responses}}
+ * block. It will throw otherwise.
+ *
+ * @param {*} options
+ */
+async function chip_tests_only_cluster_response_parameters(options)
+{
+  const conditions = [ isTestOnlyCluster(this.parent.name), this.arguments, this.responseName ];
+  checkIsInsideTestOnlyClusterBlock(conditions, 'chip_tests_only_cluster_responses');
+
+  return asBlocks.call(this, Promise.resolve(this.arguments), options);
+}
+
+function chip_tests_iterate_expected_list(values, options)
+{
+  values = values.map(value => {
+    return {
+      global: this.global, parent: this.parent, name: this.name, type: this.type, isArray: false, isNullable: false, value: value,
+    }
+  });
+
+  return asBlocks.call(this, Promise.resolve(values), options);
 }
 
 //
 // Module exports
 //
-exports.chip_tests                          = chip_tests;
-exports.chip_tests_items                    = chip_tests_items;
-exports.chip_tests_item_has_list            = chip_tests_item_has_list;
-exports.chip_tests_item_parameters          = chip_tests_item_parameters;
-exports.chip_tests_item_responses           = chip_tests_item_responses;
-exports.chip_tests_item_response_parameters = chip_tests_item_response_parameters;
-exports.chip_tests_pics                     = chip_tests_pics;
-exports.chip_tests_config                   = chip_tests_config;
-exports.chip_tests_config_has               = chip_tests_config_has;
-exports.chip_tests_config_get_default_value = chip_tests_config_get_default_value;
-exports.chip_tests_config_get_type          = chip_tests_config_get_type;
-exports.chip_tests_variables                = chip_tests_variables;
-exports.chip_tests_variables_has            = chip_tests_variables_has;
-exports.chip_tests_variables_get_type       = chip_tests_variables_get_type;
-exports.isTestOnlyCluster                   = isTestOnlyCluster;
-exports.isLiteralNull                       = isLiteralNull;
-exports.octetStringEscapedForCLiteral       = octetStringEscapedForCLiteral;
-exports.if_include_struct_item_value        = if_include_struct_item_value;
-exports.ensureIsArray                       = ensureIsArray;
+exports.chip_tests                                  = chip_tests;
+exports.chip_tests_items                            = chip_tests_items;
+exports.chip_tests_item_parameters                  = chip_tests_item_parameters;
+exports.chip_tests_item_responses                   = chip_tests_item_responses;
+exports.chip_tests_item_response_parameters         = chip_tests_item_response_parameters;
+exports.chip_tests_pics                             = chip_tests_pics;
+exports.chip_tests_config                           = chip_tests_config;
+exports.chip_tests_config_has                       = chip_tests_config_has;
+exports.chip_tests_config_get_default_value         = chip_tests_config_get_default_value;
+exports.chip_tests_config_get_type                  = chip_tests_config_get_type;
+exports.chip_tests_variables                        = chip_tests_variables;
+exports.chip_tests_variables_has                    = chip_tests_variables_has;
+exports.chip_tests_variables_get_type               = chip_tests_variables_get_type;
+exports.chip_tests_variables_is_nullable            = chip_tests_variables_is_nullable;
+exports.isTestOnlyCluster                           = isTestOnlyCluster;
+exports.isLiteralNull                               = isLiteralNull;
+exports.octetStringEscapedForCLiteral               = octetStringEscapedForCLiteral;
+exports.if_include_struct_item_value                = if_include_struct_item_value;
+exports.ensureIsArray                               = ensureIsArray;
+exports.chip_tests_only_clusters                    = chip_tests_only_clusters;
+exports.chip_tests_only_cluster_commands            = chip_tests_only_cluster_commands;
+exports.chip_tests_only_cluster_command_parameters  = chip_tests_only_cluster_command_parameters;
+exports.chip_tests_only_cluster_responses           = chip_tests_only_cluster_responses;
+exports.chip_tests_only_cluster_response_parameters = chip_tests_only_cluster_response_parameters;
+exports.isHexString                                 = isHexString;
+exports.octetStringLengthFromHexString              = octetStringLengthFromHexString;
+exports.octetStringFromHexString                    = octetStringFromHexString;
+exports.chip_tests_iterate_expected_list            = chip_tests_iterate_expected_list;

@@ -37,14 +37,6 @@ config:
         defaultValue: "MT:-24J0AFN00KA0648G00" # This value needs to be generated automatically
 
 tests:
-    - label: "Reboot target device"
-      cluster: "SystemCommands"
-      command: "Reboot"
-      arguments:
-          values:
-              - name: "discriminator"
-                value: discriminator
-
     - label: "TH_CR1 starts a commissioning process with DUT_CE"
       cluster: "DelayCommands"
       command: "WaitForCommissionee"
@@ -69,36 +61,12 @@ tests:
       arguments:
           values:
               - name: "ms"
-                value: 54000
-
-    - label: "Wait for PIXIT_COMM_WIN(180) + 10"
-      cluster: "DelayCommands"
-      command: "WaitForMs"
-      arguments:
-          values:
-              - name: "ms"
-                value: 54000
-
-    - label: "Wait for PIXIT_COMM_WIN(180) + 10"
-      cluster: "DelayCommands"
-      command: "WaitForMs"
-      arguments:
-          values:
-              - name: "ms"
-                value: 54000
-
-    - label: "Wait for PIXIT_COMM_WIN(180) + 10"
-      cluster: "DelayCommands"
-      command: "WaitForMs"
-      arguments:
-          values:
-              - name: "ms"
-                value: 28000
+                value: 190000
 
     - label: "Commission from beta"
       identity: "beta"
       cluster: "CommissionerCommands"
-      command: "PairWithQRCode"
+      command: "PairWithCode"
       arguments:
           values:
               - name: "nodeId"
@@ -125,7 +93,7 @@ tests:
     - label: "Commission from beta"
       identity: "beta"
       cluster: "CommissionerCommands"
-      command: "PairWithQRCode"
+      command: "PairWithCode"
       arguments:
           values:
               - name: "nodeId"
@@ -171,7 +139,7 @@ tests:
     - label: "Commission from beta"
       identity: "beta"
       cluster: "CommissionerCommands"
-      command: "PairWithQRCode"
+      command: "PairWithCode"
       arguments:
           values:
               - name: "nodeId"
@@ -191,7 +159,7 @@ tests:
     - label: "TH_CR3 starts a commissioning process with DUT_CE"
       identity: "gamma"
       cluster: "CommissionerCommands"
-      command: "PairWithQRCode"
+      command: "PairWithCode"
       arguments:
           values:
               - name: "nodeId"

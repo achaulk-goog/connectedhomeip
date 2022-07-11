@@ -85,29 +85,29 @@ CHIP_ERROR WriteClient::ProcessWriteResponseMessage(System::PacketBufferHandle &
 
     reader.Init(std::move(payload));
 
-    err = writeResponse.Init(reader);
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(writeResponse.Init(reader));
 
 #if CHIP_CONFIG_IM_ENABLE_SCHEMA_CHECK
-    err = writeResponse.CheckSchemaValidity();
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(writeResponse.CheckSchemaValidity());
 #endif
+
     err = writeResponse.GetWriteResponses(&attributeStatusesParser);
-    SuccessOrExit(err);
+    if (err == CHIP_END_OF_TLV)
+    {
+        return CHIP_NO_ERROR;
+    }
+    ReturnErrorOnFailure(err);
 
     attributeStatusesParser.GetReader(&attributeStatusesReader);
 
     while (CHIP_NO_ERROR == (err = attributeStatusesReader.Next()))
     {
-        VerifyOrExit(TLV::AnonymousTag() == attributeStatusesReader.GetTag(), err = CHIP_ERROR_INVALID_TLV_TAG);
+        VerifyOrReturnError(TLV::AnonymousTag() == attributeStatusesReader.GetTag(), err = CHIP_ERROR_INVALID_TLV_TAG);
 
         AttributeStatusIB::Parser element;
 
-        err = element.Init(attributeStatusesReader);
-        SuccessOrExit(err);
-
-        err = ProcessAttributeStatusIB(element);
-        SuccessOrExit(err);
+        ReturnErrorOnFailure(element.Init(attributeStatusesReader));
+        ReturnErrorOnFailure(ProcessAttributeStatusIB(element));
     }
 
     // if we have exhausted this container
@@ -115,11 +115,8 @@ CHIP_ERROR WriteClient::ProcessWriteResponseMessage(System::PacketBufferHandle &
     {
         err = CHIP_NO_ERROR;
     }
-    SuccessOrExit(err);
-    ReturnErrorOnFailure(writeResponse.ExitContainer());
-
-exit:
-    return err;
+    ReturnErrorOnFailure(err);
+    return writeResponse.ExitContainer();
 }
 
 CHIP_ERROR WriteClient::PrepareAttributeIB(const ConcreteDataAttributePath & aPath)
@@ -230,7 +227,7 @@ CHIP_ERROR WriteClient::StartNewMessage()
     // end of container).
     reservedSize = static_cast<uint16_t>(reservedSize + kReservedSizeForTLVEncodingOverhead);
 
-#if CONFIG_IM_BUILD_FOR_UNIT_TEST
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
     // ... and for unit tests.
     reservedSize = static_cast<uint16_t>(reservedSize + mReservedSize);
 #endif
@@ -372,7 +369,15 @@ CHIP_ERROR WriteClient::SendWriteRequest(const SessionHandle & session, System::
     mpExchangeCtx = mpExchangeMgr->NewContext(session, this);
     VerifyOrExit(mpExchangeCtx != nullptr, err = CHIP_ERROR_NO_MEMORY);
     VerifyOrReturnError(!(mpExchangeCtx->IsGroupExchangeContext() && mHasDataVersion), CHIP_ERROR_INVALID_MESSAGE_TYPE);
-    mpExchangeCtx->SetResponseTimeout(timeout);
+
+    if (timeout == System::Clock::kZero)
+    {
+        mpExchangeCtx->UseSuggestedResponseTimeout(app::kExpectedIMProcessingTime);
+    }
+    else
+    {
+        mpExchangeCtx->SetResponseTimeout(timeout);
+    }
 
     if (mTimedWriteTimeoutMs.HasValue())
     {
@@ -389,7 +394,7 @@ CHIP_ERROR WriteClient::SendWriteRequest(const SessionHandle & session, System::
 exit:
     if (err != CHIP_NO_ERROR)
     {
-        ChipLogError(DataManagement, "Write client failed to SendWriteRequest: %s", ErrorStr(err));
+        ChipLogError(DataManagement, "Write client failed to SendWriteRequest: %" CHIP_ERROR_FORMAT, err.Format());
     }
     else
     {
@@ -420,7 +425,8 @@ CHIP_ERROR WriteClient::SendWriteRequest()
 
     System::PacketBufferHandle data = mChunks.PopHead();
 
-    if (!mChunks.IsNull() && mpExchangeCtx->IsGroupExchangeContext())
+    bool isGroupWrite = mpExchangeCtx->IsGroupExchangeContext();
+    if (!mChunks.IsNull() && isGroupWrite)
     {
         // Reject this request if we have more than one chunk (mChunks is not null after PopHead()), and this is a group
         // exchange context.
@@ -429,6 +435,12 @@ CHIP_ERROR WriteClient::SendWriteRequest()
 
     // kExpectResponse is ignored by ExchangeContext in case of groupcast
     ReturnErrorOnFailure(mpExchangeCtx->SendMessage(MsgType::WriteRequest, std::move(data), SendMessageFlags::kExpectResponse));
+    if (isGroupWrite)
+    {
+        // Exchange is closed now, since there are no group responses.  Drop our
+        // ref to it.
+        mpExchangeCtx = nullptr;
+    }
     MoveToState(State::AwaitingResponse);
     return CHIP_NO_ERROR;
 }

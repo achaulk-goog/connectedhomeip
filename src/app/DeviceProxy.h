@@ -43,11 +43,11 @@ public:
     /**
      *  Mark any open session with the device as expired.
      */
-    virtual CHIP_ERROR Disconnect() = 0;
+    virtual void Disconnect() = 0;
 
     virtual NodeId GetDeviceId() const = 0;
 
-    virtual CHIP_ERROR ShutdownSubscriptions() { return CHIP_ERROR_NOT_IMPLEMENTED; }
+    virtual void ShutdownSubscriptions() = 0;
 
     virtual CHIP_ERROR SendCommands(app::CommandSender * commandObj, chip::Optional<System::Clock::Timeout> timeout = NullOptional);
 
@@ -59,10 +59,20 @@ public:
 
     const ReliableMessageProtocolConfig & GetRemoteMRPConfig() const { return mRemoteMRPConfig; }
 
+    /**
+     * @brief
+     *   This function returns the attestation challenge for the secure session.
+     *
+     * @param[out] attestationChallenge The output for the attestationChallenge
+     *
+     * @return CHIP_ERROR               CHIP_NO_ERROR on success, or CHIP_ERROR_INVALID_ARGUMENT if no secure session is active
+     */
+    virtual CHIP_ERROR GetAttestationChallenge(ByteSpan & attestationChallenge);
+
 protected:
     virtual bool IsSecureConnected() const = 0;
 
-    ReliableMessageProtocolConfig mRemoteMRPConfig = GetLocalMRPConfig();
+    ReliableMessageProtocolConfig mRemoteMRPConfig = GetDefaultMRPConfig();
 };
 
 } // namespace chip

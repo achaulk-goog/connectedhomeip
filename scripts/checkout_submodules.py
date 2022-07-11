@@ -29,6 +29,7 @@ ALL_PLATFORMS = set([
     'android',
     'bl602',
     'cc13x2_26x2',
+    'cc32xx',
     'cyw30739',
     'darwin',
     'efr32',
@@ -42,6 +43,7 @@ ALL_PLATFORMS = set([
     'telink',
     'tizen',
     'webos',
+    'mw320',
 ])
 
 Module = namedtuple('Module', 'name path platforms')
@@ -71,6 +73,10 @@ def checkout_modules(modules: list, shallow: bool) -> None:
     names = [module.name.replace('submodule "', '').replace('"', '') for module in modules]
     names = ', '.join(names)
     logging.info(f'Checking out: {names}')
+
+    # ensure no errors regarding ownership in the directory. Newer GIT seems to
+    # require this:
+    subprocess.check_call(['git', 'config', '--global', '--add', 'safe.directory', CHIP_ROOT])
 
     cmd = ['git', '-C', CHIP_ROOT, 'submodule', 'update', '--init']
     cmd += ['--depth', '1'] if shallow else []

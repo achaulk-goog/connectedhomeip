@@ -82,6 +82,7 @@ chip_test_suite("tests") {
     "TestEventLogging.cpp",
     "TestEventOverflow.cpp",
     "TestEventPathParams.cpp",
+    "TestFabricScopedEventLogging.cpp",
     "TestInteractionModelEngine.cpp",
     "TestMessageDef.cpp",
     "TestNumericAttributeTraits.cpp",
@@ -93,6 +94,10 @@ chip_test_suite("tests") {
     "TestTimedHandler.cpp",
     "TestWriteInteraction.cpp",
   ]
+
+  if (!chip_fake_platform) {
+    test_sources += [ "TestFailSafeContext.cpp" ]
+  }
 
   #
   # On NRF platforms, the allocation of a large number of pbufs in this test
@@ -113,6 +118,7 @@ chip_test_suite("tests") {
     "${chip_root}/src/app/tests:helpers",
     "${chip_root}/src/app/util/mock:mock_ember",
     "${chip_root}/src/lib/core",
+    "${chip_root}/src/lib/support:testing",
     "${nlunit_test_root}:nlunit-test",
   ]
 

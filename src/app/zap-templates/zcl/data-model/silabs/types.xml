@@ -261,98 +261,6 @@ limitations under the License.
     <field name="Ultrasonic" mask="0x02"/>
     <field name="PhysicalContact" mask="0x04"/>
   </bitmap>
-  <enum name="IasZoneState" type="ENUM8">
-    <item name="notEnrolled" value="0x0"/>
-    <item name="enrolled" value="0x1"/>
-  </enum>
-  <enum name="IasZoneType" type="ENUM16">
-    <cluster code="0x0500"/>
-    <cluster code="0x0501"/>
-    <item name="standardCie" value="0x0"/>
-    <item name="motionSensor" value="0xd"/>
-    <item name="contactSwitch" value="0x15"/>
-    <item name="fireSensor" value="0x28"/>
-    <item name="waterSensor" value="0x2a"/>
-    <item name="gasSensor" value="0x2b"/>
-    <item name="personalEmergencyDevice" value="0x2c"/>
-    <item name="vibrationMovementSensor" value="0x2d"/>
-    <item name="remoteControl" value="0x10f"/>
-    <item name="keyFob" value="0x115"/>
-    <item name="keypad" value="0x21d"/>
-    <item name="standardWarningDevice" value="0x225"/>
-    <item name="glassBreakSensor" value="0x226"/>
-    <item name="carbonMonoxideSensor" value="0x227"/>
-    <item name="securityRepeater" value="0x0229"/>
-    <!-- 0x8000 - 0xFFFE manufacturer specific types -->
-    <item name="invalidZoneType" value="0xFFFF"/>
-  </enum>
-  <enum name="IasEnrollResponseCode" type="ENUM8">
-    <cluster code="0x0500"/>
-    <item name="success" value="0x0"/>
-    <item name="notSupported" value="0x1"/>
-    <item name="noEnrollPermit" value="0x2"/>
-    <item name="tooManyZones" value="0x3"/>
-  </enum>
-  <enum name="IasAceArmMode" type="ENUM8">
-    <cluster code="0x0501"/>
-    <item name="disarm" value="0x0"/>
-    <item name="armDayHomeZonesOnly" value="0x1"/>
-    <item name="armNightSleepZonesOnly" value="0x2"/>
-    <item name="armAllZones" value="0x3"/>
-  </enum>
-  <enum name="IasAceArmNotification" type="ENUM8">
-    <cluster code="0x0501"/>
-    <item name="allZonesDisarmed" value="0x0"/>
-    <item name="onlyDayHomeZonesArmed" value="0x1"/>
-    <item name="onlyNightSleepZonesArmed" value="0x2"/>
-    <item name="allZonesArmed" value="0x3"/>
-    <item name="invalidArmDisarmCode" value="0x04"/>
-    <item name="notReadyToArm" value="0x05"/>
-    <item name="alreadyDisarmed" value="0x06"/>
-  </enum>
-  <enum name="IasAceAudibleNotification" type="ENUM8">
-    <cluster code="0x0501"/>
-    <item name="mute" value="0x0"/>
-    <item name="defaultSound" value="0x1"/>
-  </enum>
-  <enum name="IasAceAlarmStatus" type="ENUM8">
-    <cluster code="0x0501"/>
-    <item name="noAlarm" value="0x0"/>
-    <item name="burglar" value="0x1"/>
-    <item name="fire" value="0x2"/>
-    <item name="emergency" value="0x3"/>
-    <item name="policePanic" value="0x4"/>
-    <item name="firePanic" value="0x5"/>
-    <item name="emergencyPanic" value="0x6"/>
-  </enum>
-  <enum name="IasAcePanelStatus" type="ENUM8">
-    <cluster code="0x0501"/>
-    <item name="panelDisarmed" value="0x00"/>
-    <item name="armedStay" value="0x01"/>
-    <item name="armedNight" value="0x02"/>
-    <item name="armedAway" value="0x03"/>
-    <item name="exitDelay" value="0x04"/>
-    <item name="entryDelay" value="0x05"/>
-    <item name="notReadyToArm" value="0x06"/>
-    <item name="inAlarm" value="0x07"/>
-    <item name="armingStay" value="0x08"/>
-    <item name="armingNight" value="0x09"/>
-    <item name="armingAway" value="0x0A"/>
-  </enum>
-  <enum name="IasAceBypassResult" type="ENUM8">
-    <cluster code="0x0501"/>
-    <item name="zoneBypassed" value="0x0"/>
-    <item name="zoneNotBypassed" value="0x1"/>
-    <item name="notAllowed" value="0x2"/>
-    <item name="invalidZoneId" value="0x3"/>
-    <item name="unknownZoneId" value="0x4"/>
-    <item name="invalidArmDisarmCode" value="0x5"/>
-  </enum>
-  <struct name="IasAceZoneStatusResult">
-    <cluster code="0x0501"/>
-    <item name="zoneId" type="INT8U"/>
-    <item name="zoneStatus" type="IasZoneStatus"/>
-  </struct>
   <enum name="WarningMode" type="ENUM8">
     <item name="stop" value="0x0"/>
     <item name="burglar" value="0x1"/>
@@ -402,6 +310,56 @@ limitations under the License.
     <item name="ReadOnly" value="0x88"/>
     <item name="InvalidDataType" value="0x8D"/>
   </enum>
+  <enum name="Status" type="ENUM8" description="Status codes used in the ZigBee Cluster Library">
+    <item name="SUCCESS" value="0x00"/>
+    <item name="FAILURE" value="0x01"/>
+    <item name="NOT_AUTHORIZED" value="0x7E"/>
+    <!-- item name="reserved" value="0x7F"/ -->
+    <item name="MALFORMED_COMMAND" value="0x80"/>
+    <item name="UNSUP_COMMAND" value="0x81"/>
+    <!-- renamed from UNSUP_CLUSTER_COMMAND -->
+    <item name="UNSUP_GENERAL_COMMAND" value="0x82"/>
+    <!-- DEPRECATED use UNSUP_COMMAND -->
+    <item name="UNSUP_MANUF_CLUSTER_COMMAND" value="0x83"/>
+    <!-- DEPRECATED use UNSUP_COMMAND -->
+    <item name="UNSUP_MANUF_GENERAL_COMMAND" value="0x84"/>
+    <!-- DEPRECATED use UNSUP_COMMAND -->
+    <item name="INVALID_FIELD" value="0x85"/>
+    <item name="UNSUPPORTED_ATTRIBUTE" value="0x86"/>
+    <item name="INVALID_VALUE" value="0x87"/>
+    <item name="READ_ONLY" value="0x88"/>
+    <item name="INSUFFICIENT_SPACE" value="0x89"/>
+    <item name="DUPLICATE_EXISTS" value="0x8A"/>
+    <!-- DEPRECATED use SUCCESS -->
+    <item name="NOT_FOUND" value="0x8B"/>
+    <item name="UNREPORTABLE_ATTRIBUTE" value="0x8C"/>
+    <item name="INVALID_DATA_TYPE" value="0x8D"/>
+    <item name="INVALID_SELECTOR" value="0x8E"/>
+    <item name="WRITE_ONLY" value="0x8F"/>
+    <!-- DEPRECATED use NOT_AUTHORIZED -->
+    <item name="INCONSISTENT_STARTUP_STATE" value="0x90"/>
+    <!-- DEPRECATED use FAILURE -->
+    <item name="DEFINED_OUT_OF_BAND" value="0x91"/>
+    <!-- DEPRECATED use FAILURE -->
+    <!-- item name="reserved" value="0x92"/ -->
+    <item name="ACTION_DENIED" value="0x93"/>
+    <!-- DEPRECATED use FAILURE -->
+    <item name="TIMEOUT" value="0x94"/>
+    <item name="ABORT" value="0x95"/>
+    <item name="INVALID_IMAGE" value="0x96"/>
+    <item name="WAIT_FOR_DATA" value="0x97"/>
+    <item name="NO_IMAGE_AVAILABLE" value="0x98"/>
+    <item name="REQUIRE_MORE_IMAGE" value="0x99"/>
+    <item name="NOTIFICATION_PENDING" value="0x9A"/>
+    <item name="HARDWARE_FAILURE" value="0xC0"/>
+    <!-- DEPRECATED use FAILURE -->
+    <item name="SOFTWARE_FAILURE" value="0xC1"/>
+    <!-- DEPRECATED use FAILURE -->
+    <!-- item name="reserved" value="0xC2"/ -->
+    <item name="UNSUPPORTED_CLUSTER" value="0xC3"/>
+    <item name="LIMIT_REACHED" value="0xC4"/>
+    <!-- DEPRECATED use SUCCESS -->
+  </enum>
   <struct name="ReadAttributeStatusRecord">
     <item name="attributeId" type="ATTRIB_ID"/>
     <item name="status" type="Status"/>
@@ -434,16 +392,6 @@ limitations under the License.
     <item name="attributeId" type="ATTRIB_ID"/>
     <item name="indicator" type="INT8U"/>
     <item name="indicies" type="INT16U" array="true"/>
-  </struct>
-  <struct name="SceneExtensionAttributeInfo">
-    <item name="attributeType" type="INT8U"/>
-    <item name="attributeLocation" type="NO_DATA"/>
-  </struct>
-  <struct name="SceneExtensionFieldSet">
-    <cluster code="0x0005"/>
-    <item name="clusterId" type="CLUSTER_ID"/>
-    <item name="length" type="INT8U"/>
-    <item name="value" type="INT8U"/>
   </struct>
   <struct name="Notification">
     <item name="contentId" type="INT16U"/>
