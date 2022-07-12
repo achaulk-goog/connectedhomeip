@@ -235,7 +235,7 @@ struct Attribute
 protected:
     void OnChanged(CommonCluster * cluster)
     {
-        MatterReportingAttributeChangeCallback(cluster->GetEndpointId(), cluster->GetClusterId(), kId, kMatterType,
+        MatterReportingAttributeChangeCallback(cluster->GetEndpointId(), cluster->GetClusterId(), kId, kMask, kMatterType,
                                                mValue.GetBytes());
     }
 
@@ -263,7 +263,7 @@ struct BridgedDeviceBasicCluster : public CommonCluster
     }
 
     static constexpr EmberAfAttributeMetadata kAllAttributes[] = {
-        { ZCL_REACHABLE_ATTRIBUTE_ID, ZCL_BOOLEAN_ATTRIBUTE_TYPE, 1, 0, 0u },
+        { ZCL_REACHABLE_ATTRIBUTE_ID, ZCL_BOOLEAN_ATTRIBUTE_TYPE, 1, 0, (uint16_t)0u },
     };
     chip::Span<const EmberAfAttributeMetadata> GetAllAttributes() override
     {

@@ -107,7 +107,7 @@ def GetDynamicEndpoint(idl: Idl):
 
 def IsDynamicCluster(cluster: Cluster, idl: Idl):
     for c in GetDynamicEndpoint(idl).server_clusters:
-        if cluster.name == c.name:
+        if cluster.name == c:
             return True
     return False
 

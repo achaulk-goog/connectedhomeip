@@ -21,11 +21,8 @@ from .gn import GnBuilder
 
 class HostApp(Enum):
     ALL_CLUSTERS = auto()
-<<<<<<< HEAD
-=======
     ALL_CLUSTERS_MINIMAL = auto()
     BRIDGE_APP = auto()
->>>>>>> 9cfcce1f7 (Update bridge app)
     CHIP_TOOL = auto()
     CHIP_TOOL_DARWIN = auto()
     THERMOSTAT = auto()
@@ -45,13 +42,10 @@ class HostApp(Enum):
     def ExamplePath(self):
         if self == HostApp.ALL_CLUSTERS:
             return 'all-clusters-app/linux'
-<<<<<<< HEAD
-=======
         elif self == HostApp.ALL_CLUSTERS_MINIMAL:
             return 'all-clusters-minimal-app/linux'
         elif self == HostApp.BRIDGE_APP:
             return 'bridge-app/linux'
->>>>>>> 9cfcce1f7 (Update bridge app)
         elif self == HostApp.CHIP_TOOL:
             return 'chip-tool'
         elif self == HostApp.CHIP_TOOL_DARWIN:
